@@ -1,6 +1,6 @@
 const CSV_URL='https://docs.google.com/spreadsheets/d/e/2PACX-1vQAFcBJvDUqxyx0xJmsqoGjG1XCbX8zNUory4qCmndR0gjxQSwQhtGN8OFk9uB8Co2VkD9AdsyOHFKX/pub?gid=638479938&single=true&output=csv';
 // ใส่ Apps Script Web App URL ที่ deploy แล้วตรงนี้เพื่อเปิด CRUD
-const API_URL='';
+const API_URL='https://script.google.com/macros/s/AKfycbzBGl_rPjtlGPOOcvPbhGMIWhxUJG0QKTu9HhCNaGbkwfIovEOW31sdsSI5gbPt7-BP-w/exec';
 const cols=['ที่','เดือน','OP visit','NCD visit','Non NCD visit','Bed rate','Active bed','Sum AdjRW','CMI','Fixed cost','LC(OT)','ยอดพิจารณาจ่าย IP','อัตราจ่าย/Adj.','หักเงินเดือน','คงเหลือรับ','ผู้รายงาน','วันที่รายงาน'];
 const crudCols=cols.slice(1);
 const numericCols=['OP visit','NCD visit','Non NCD visit','Bed rate','Active bed','Sum AdjRW','CMI','Fixed cost','LC(OT)','ยอดพิจารณาจ่าย IP','อัตราจ่าย/Adj.','หักเงินเดือน','คงเหลือรับ'];
