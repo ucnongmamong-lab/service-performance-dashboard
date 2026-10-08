@@ -1,179 +1,294 @@
 <!doctype html>
 <html lang="th">
 <head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Service Performance Dashboard</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-<!-- เพิ่ม Font Prompt -->
-<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-<link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0f5bd7">
+  <title>Service Performance Dashboard</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+  <link rel="stylesheet" href="styles.css">
 </head>
-<body class="bg-light">
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary sticky-top shadow-sm">
-  <div class="container-fluid">
-    <span class="navbar-brand fw-bold">📊 Service Performance Dashboard</span>
-    <span class="navbar-text text-white-50 small d-none d-md-block">ข้อมูลบริการและการเงิน</span>
-  </div>
-</nav>
-<main class="container-fluid py-4">
-  <!-- เมนูนำทาง -->
-  <div class="d-flex flex-wrap gap-2 mb-4">
-    <button class="btn btn-primary nav-btn active shadow-sm" data-view="dashboard">ภาพรวม Dashboard</button>
-    <button class="btn btn-outline-primary nav-btn shadow-sm bg-white" data-view="analysis">วิเคราะห์เปรียบเทียบ</button>
-    <button class="btn btn-outline-primary nav-btn shadow-sm bg-white" data-view="data">ข้อมูลทั้งหมด / CRUD</button>
-  </div>
 
-  <!-- ตัวกรอง -->
-  <section class="filters card shadow-sm mb-4 border-0 rounded-4">
-    <div class="card-body row g-3 align-items-end">
-      <div class="col-6 col-md-2">
-        <label class="form-label text-muted fw-bold mb-1 small">ปีงบประมาณ</label>
-        <select id="yearFilter" class="form-select form-select-sm border-0 bg-light"></select>
-      </div>
-      <div class="col-6 col-md-2">
-        <label class="form-label text-muted fw-bold mb-1 small">เดือน</label>
-        <select id="monthFilter" class="form-select form-select-sm border-0 bg-light"></select>
-      </div>
-      <div class="col-12 col-md-3">
-        <label class="form-label text-muted fw-bold mb-1 small">ค้นหา</label>
-        <input id="search" class="form-control form-control-sm border-0 bg-light" placeholder="เช่น OP, NCD, ผู้รายงาน..." />
-      </div>
-      <div class="col-6 col-md-2">
-        <label class="form-label text-muted fw-bold mb-1 small">ตัวชี้วัดหลัก</label>
-        <select id="metricFilter" class="form-select form-select-sm border-0 bg-light"></select>
-      </div>
-      <div class="col-6 col-md-3 d-flex gap-2">
-        <button id="refresh" class="btn btn-sm btn-primary flex-fill shadow-sm">↻ รีเฟรช</button>
-        <button id="reset" class="btn btn-sm btn-light flex-fill shadow-sm text-secondary">ล้างตัวกรอง</button>
-      </div>
-    </div>
-  </section>
+<body>
+  <div class="app-shell">
 
-  <div id="status" class="small text-secondary mb-3 ms-2"></div>
-
-  <!-- หน้า Dashboard -->
-  <section id="view-dashboard">
-    <section class="row g-3 mb-4" id="kpis"></section>
-    
-    <section class="row g-4 mb-4">
-      <div class="col-12 col-xl-8">
-        <div class="card shadow-sm h-100 border-0 rounded-4">
-          <div class="card-body">
-            <h6 class="fw-bold text-primary mb-3">แนวโน้มผลงานรายเดือน (เรียงตามปีงบประมาณ ต.ค.-ก.ย.)</h6>
-            <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-inner">
+        <div class="brand">
+          <div class="brand-mark"><i class="bi bi-bar-chart-line-fill"></i></div>
+          <div>
+            <div class="brand-title">Service Performance Dashboard</div>
+            <div class="brand-subtitle">ระบบติดตามผลงานบริการและข้อมูลการเงิน</div>
           </div>
         </div>
-      </div>
-      <div class="col-12 col-xl-4">
-        <div class="card shadow-sm h-100 border-0 rounded-4">
-          <div class="card-body">
-            <h6 class="fw-bold text-success mb-3">สัดส่วน OP / NCD / Non NCD</h6>
-            <div class="chart-wrap"><canvas id="visitChart"></canvas></div>
-          </div>
+        <div class="header-meta">
+          <span class="live-dot"></span>
+          <span>Live • Google Sheet</span>
         </div>
       </div>
-    </section>
+    </header>
 
-    <section class="row g-4 mb-4">
-      <div class="col-12 col-lg-6">
-        <div class="card shadow-sm h-100 border-0 rounded-4">
-          <div class="card-body">
-            <h6 class="fw-bold text-info mb-3">🏆 5 เดือนผลงานเด่น</h6>
-            <div id="topTable"></div>
-          </div>
-        </div>
-      </div>
-      <div class="col-12 col-lg-6">
-        <div class="card shadow-sm h-100 border-0 rounded-4">
-          <div class="card-body">
-            <h6 class="fw-bold text-warning mb-3">⚠️ 5 เดือนที่ควรติดตาม</h6>
-            <div id="bottomTable"></div>
-          </div>
-        </div>
-      </div>
-    </section>
-  </section>
+    <main class="container-fluid dashboard-container">
 
-  <!-- หน้า Analysis -->
-  <section id="view-analysis" class="d-none">
-    <div class="row g-3 mb-4" id="analysisCards"></div>
-    <div class="card shadow-sm mb-4 border-0 rounded-4">
-      <div class="card-body">
-        <h6 class="fw-bold text-primary mb-3">เปรียบเทียบรายปีงบประมาณ</h6>
-        <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0" id="yearTable"></table>
-        </div>
+      <!-- Navigation -->
+      <div class="page-nav">
+        <button class="nav-tab active" data-view="dashboard">
+          <i class="bi bi-grid-1x2-fill"></i><span>ภาพรวม</span>
+        </button>
+        <button class="nav-tab" data-view="analysis">
+          <i class="bi bi-graph-up-arrow"></i><span>วิเคราะห์เปรียบเทียบ</span>
+        </button>
+        <button class="nav-tab" data-view="data">
+          <i class="bi bi-table"></i><span>ข้อมูลทั้งหมด / CRUD</span>
+        </button>
       </div>
-    </div>
-    <div class="row g-4">
-      <div class="col-12 col-xl-6">
-        <div class="card shadow-sm border-0 rounded-4 h-100">
-          <div class="card-body">
-            <h6 class="fw-bold text-secondary mb-3">เปลี่ยนแปลงรายเดือน (%)</h6>
+
+      <!-- Filters -->
+      <section class="filter-card">
+        <div class="filter-heading">
+          <div>
+            <span class="section-kicker">FILTER</span>
+            <h2>ตัวกรองข้อมูล</h2>
+          </div>
+          <div class="data-status">
+            <span id="statusDot" class="status-dot"></span>
+            <span id="status">กำลังเตรียมระบบ...</span>
+          </div>
+        </div>
+
+        <div class="filter-grid">
+          <div class="filter-item">
+            <label for="yearFilter"><i class="bi bi-calendar3"></i> ปีงบประมาณ</label>
+            <select id="yearFilter"></select>
+          </div>
+
+          <div class="filter-item">
+            <label for="monthFilter"><i class="bi bi-calendar-month"></i> เดือน</label>
+            <select id="monthFilter"></select>
+          </div>
+
+          <div class="filter-item search-item">
+            <label for="search"><i class="bi bi-search"></i> ค้นหาทุกคอลัมน์</label>
+            <div class="search-box">
+              <i class="bi bi-search"></i>
+              <input id="search" type="search" placeholder="เช่น ต.ค.69, OP, NCD, ผู้รายงาน...">
+            </div>
+          </div>
+
+          <div class="filter-item">
+            <label for="metricFilter"><i class="bi bi-speedometer2"></i> ตัวชี้วัดหลัก</label>
+            <select id="metricFilter"></select>
+          </div>
+
+          <div class="filter-actions">
+            <button id="refresh" class="btn-primary-app">
+              <i class="bi bi-arrow-clockwise"></i><span>รีเฟรช</span>
+            </button>
+            <button id="reset" class="btn-soft">
+              <i class="bi bi-x-circle"></i><span>ล้างตัวกรอง</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Dashboard -->
+      <section id="view-dashboard" class="view-section">
+
+        <div class="section-title-row">
+          <div>
+            <span class="section-kicker">OVERVIEW</span>
+            <h1>📊 Dashboard KPI</h1>
+          </div>
+          <div id="count" class="result-count">0 รายการ</div>
+        </div>
+
+        <section id="kpis" class="kpi-grid"></section>
+
+        <section class="chart-grid-main">
+          <article class="panel panel-large">
+            <div class="panel-header">
+              <div>
+                <h3><i class="bi bi-activity"></i> แนวโน้มผลงาน</h3>
+                <p>เรียงตามปีงบประมาณ ต.ค. → ก.ย.</p>
+              </div>
+              <span class="panel-badge">Monthly Trend</span>
+            </div>
+            <div class="chart-wrap chart-main"><canvas id="trendChart"></canvas></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <h3><i class="bi bi-pie-chart-fill"></i> สัดส่วนผู้รับบริการ</h3>
+                <p>OP / NCD / Non NCD</p>
+              </div>
+            </div>
+            <div class="chart-wrap chart-donut"><canvas id="visitChart"></canvas></div>
+          </article>
+        </section>
+
+        <section class="three-grid">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <h3>🏆 จัดอันดับผลงาน</h3>
+                <p>5 รายการสูงสุดตามตัวชี้วัดที่เลือก</p>
+              </div>
+            </div>
+            <div id="topTable" class="rank-list"></div>
+          </article>
+
+          <article class="panel warning-panel">
+            <div class="panel-header">
+              <div>
+                <h3>⚠️ รายการที่ควรติดตาม</h3>
+                <p>รายการที่มีข้อมูลผิดปกติ/ควรตรวจสอบ</p>
+              </div>
+            </div>
+            <div id="watchList" class="watch-list"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <h3>📌 ผลงานต่ำสุด</h3>
+                <p>5 รายการต่ำสุดตามตัวชี้วัดที่เลือก</p>
+              </div>
+            </div>
+            <div id="bottomTable" class="rank-list"></div>
+          </article>
+        </section>
+      </section>
+
+      <!-- Analysis -->
+      <section id="view-analysis" class="view-section d-none">
+        <div class="section-title-row">
+          <div>
+            <span class="section-kicker">ANALYTICS</span>
+            <h1>📈 วิเคราะห์เปรียบเทียบรายปีงบประมาณ</h1>
+          </div>
+        </div>
+
+        <div id="analysisCards" class="analysis-kpi-grid"></div>
+
+        <article class="panel mb-4">
+          <div class="panel-header">
+            <div>
+              <h3><i class="bi bi-bar-chart-fill"></i> เปรียบเทียบปีงบประมาณ</h3>
+              <p>ปีงบประมาณคำนวณแบบ ต.ค.–ก.ย. เช่น ต.ค. 2568 = ปีงบประมาณ 2569</p>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table compact-table" id="yearTable"></table>
+          </div>
+        </article>
+
+        <div class="chart-grid">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <h3>📊 % เปลี่ยนแปลงรายเดือน</h3>
+                <p>เทียบกับเดือนก่อนหน้า</p>
+              </div>
+            </div>
             <div class="chart-wrap"><canvas id="changeChart"></canvas></div>
-          </div>
-        </div>
-      </div>
-      <div class="col-12 col-xl-6">
-        <div class="card shadow-sm border-0 rounded-4 h-100">
-          <div class="card-body">
-            <h6 class="fw-bold text-secondary mb-3">ค่าเฉลี่ย / แนวโน้มตัวชี้วัด</h6>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <h3>📈 แนวโน้มตัวชี้วัด</h3>
+                <p>ตัวชี้วัดที่เลือกจาก Filter</p>
+              </div>
+            </div>
             <div class="chart-wrap"><canvas id="metricChart"></canvas></div>
+          </article>
+        </div>
+      </section>
+
+      <!-- Data -->
+      <section id="view-data" class="view-section d-none">
+        <div class="section-title-row">
+          <div>
+            <span class="section-kicker">DATA MANAGEMENT</span>
+            <h1>📋 ข้อมูลทั้งหมด / CRUD</h1>
+            <p class="section-desc">อ่านจาก Published CSV และเพิ่ม/แก้ไข/ลบผ่าน Google Apps Script API</p>
+          </div>
+          <button id="addBtn" class="btn-success-app">
+            <i class="bi bi-plus-lg"></i> เพิ่มข้อมูล
+          </button>
+        </div>
+
+        <article class="panel">
+          <div class="table-toolbar">
+            <div class="table-help">
+              <i class="bi bi-info-circle"></i>
+              <span>บนมือถือสามารถเลื่อนตารางซ้าย–ขวาเพื่อดูข้อมูลครบทุกคอลัมน์</span>
+            </div>
+            <span id="countData" class="result-count">0 รายการ</span>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table" id="dataTable"></table>
+          </div>
+        </article>
+      </section>
+
+    </main>
+
+    <footer class="app-footer">
+      <span>Service Performance Dashboard</span>
+      <span>•</span>
+      <span>Fiscal Year: ต.ค. – ก.ย.</span>
+      <span>•</span>
+      <span>Google Sheet CSV</span>
+    </footer>
+  </div>
+
+  <!-- CRUD Modal -->
+  <div class="modal fade" id="rowModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content app-modal">
+        <div class="modal-header">
+          <div>
+            <span class="section-kicker">DATA ENTRY</span>
+            <h2 id="modalTitle">เพิ่มข้อมูล</h2>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
+        </div>
+
+        <div class="modal-body">
+          <div id="formGrid" class="form-grid"></div>
+          <div class="modal-note">
+            <i class="bi bi-shield-check"></i>
+            <span>การบันทึกจะส่งข้อมูลไป Google Apps Script และเขียนลงชีต <strong>กรอกข้อมูล</strong></span>
           </div>
         </div>
-      </div>
-    </div>
-  </section>
 
-  <!-- หน้าจัดการข้อมูล Data/CRUD -->
-  <section id="view-data" class="d-none">
-    <div class="card shadow-sm mb-4 border-0 rounded-4">
-      <div class="card-body d-flex flex-wrap justify-content-between gap-3 align-items-center">
-        <div>
-          <h6 class="fw-bold text-primary mb-1">จัดการข้อมูล Google Sheet</h6>
-          <div class="small text-muted">อ่านข้อมูลจาก Published CSV และเขียนกลับ Google Sheet ผ่าน Apps Script</div>
+        <div class="modal-footer">
+          <button class="btn-soft" data-bs-dismiss="modal">ยกเลิก</button>
+          <button id="saveBtn" class="btn-primary-app">
+            <i class="bi bi-save2"></i> บันทึกข้อมูล
+          </button>
         </div>
-        <button id="addBtn" class="btn btn-success shadow-sm px-4 rounded-pill">＋ เพิ่มข้อมูล</button>
-      </div>
-    </div>
-    <div class="card shadow-sm border-0 rounded-4">
-      <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h6 class="fw-bold mb-0">ข้อมูลทั้งหมดเรียงตามปีงบประมาณ</h6>
-          <span id="count" class="badge bg-primary rounded-pill px-3"></span>
-        </div>
-        <div class="table-responsive">
-          <table class="table table-hover table-sm align-middle mb-0" id="dataTable"></table>
-        </div>
-      </div>
-    </div>
-  </section>
-</main>
-
-<!-- Modal -->
-<div class="modal fade" id="rowModal" tabindex="-1">
-  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-    <div class="modal-content border-0 shadow rounded-4">
-      <div class="modal-header border-bottom-0 pb-0">
-        <h5 id="modalTitle" class="modal-title fw-bold text-primary">เพิ่มข้อมูล</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div id="formGrid" class="row g-3"></div>
-        <div class="alert alert-warning small mt-4 mb-0 rounded-3 border-0 bg-warning bg-opacity-10 text-warning-emphasis">
-          <i class="bi bi-info-circle me-1"></i> การเพิ่ม/แก้ไข/ลบจะทำงานเมื่อใส่ Apps Script Web App URL ที่ตั้งค่าไว้เท่านั้น
-        </div>
-      </div>
-      <div class="modal-footer border-top-0 pt-0">
-        <button class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">ยกเลิก</button>
-        <button id="saveBtn" class="btn btn-primary rounded-pill px-4 shadow-sm">บันทึกข้อมูล</button>
       </div>
     </div>
   </div>
-</div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="app.js"></script>
+  <div id="toast" class="app-toast">
+    <i class="bi bi-check-circle-fill"></i>
+    <span id="toastText"></span>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
