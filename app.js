@@ -12,11 +12,14 @@ const API_URL =
 const EXPECTED_SHEET = 'แผ่น1';
 const EXPECTED_GID = '0';
 
-const cols = [
-  'ที่','เดือน','OP visit','NCD visit','Non NCD visit','Bed rate','Active bed',
+const sheetCols = [
+  'เดือน','OP visit','NCD visit','Non NCD visit','Bed rate','Active bed',
   'Sum AdjRW','Sum AdjRWที่จ่าย','CMI','Fixed cost','LC(OT)','ยอดพิจารณาจ่าย IP',
   'อัตราจ่าย/Adj.','หักเงินเดือน','คงเหลือรับ','ผู้รายงาน','วันที่รายงาน'
 ];
+
+// คอลัมน์ที่แสดงบน Dashboard: เพิ่ม 'ที่' แบบคำนวณจากลำดับข้อมูล ไม่ได้เขียนลงชีต
+const cols = ['ที่', ...sheetCols];
 
 const crudCols = [
   'เดือน','OP visit','NCD visit','Non NCD visit','Bed rate','Active bed',
@@ -173,7 +176,7 @@ async function fetchSheetData() {
   if(String(result.gid)!==EXPECTED_GID) throw new Error(`API เชื่อมต่อ gid=${result.gid} ไม่ใช่ gid=0`);
 
   const headers=Array.isArray(result.headers)?result.headers:[];
-  const missing=cols.filter(h=>!headers.includes(h));
+  const missing=sheetCols.filter(h=>!headers.includes(h));
   if(missing.length) throw new Error('แผ่น1 ขาดคอลัมน์: '+missing.join(', '));
 
   return Array.isArray(result.rows) ? result.rows : [];
