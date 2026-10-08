@@ -180,10 +180,18 @@ function toast(text){
 async function load(){
   setStatus('กำลังโหลดข้อมูลจาก Google Sheet...');
   try{
-    const response=await fetch(CSV_URL,{cache:'no-store'});
+    const separator = CSV_URL.includes('?') ? '&' : '?';
+    const response=await fetch(CSV_URL+separator+'_ts='+Date.now(),{cache:'no-store'});
     if(!response.ok) throw new Error('ไม่สามารถโหลด Published CSV ได้');
     const text=await response.text();
-    rows=sortRows(parseRows(text));
+    const parsed=parseRows(text);
+    const requiredHeaders=['เดือน','OP visit','NCD visit','Non NCD visit','Bed rate','Active bed','Sum AdjRW','Sum AdjRWที่จ่าย','CMI','Fixed cost','LC(OT)','ยอดพิจารณาจ่าย IP','อัตราจ่าย/Adj.','หักเงินเดือน','คงเหลือรับ'];
+    const csvHeaders=(parseCSV(text)[0]||[]).map(x=>x.trim());
+    const missingHeaders=requiredHeaders.filter(h=>!csvHeaders.includes(h));
+    if(missingHeaders.length){
+      throw new Error('Published CSV (gid=0) ไม่มีคอลัมน์: '+missingHeaders.join(', '));
+    }
+    rows=sortRows(parsed);
     initFilters();
     render();
     setStatus(`เชื่อมต่อแล้ว • ${rows.length} รายการ • ${new Date().toLocaleTimeString('th-TH')}`);
@@ -456,11 +464,24 @@ function postApi(payload){
 
     let finished=false;
     const cleanup=()=>{try{form.remove()}catch(e){}};
+    const finishOk=()=>{
+      if(finished) return;
+      finished=true;
+      cleanup();
+      resolve({ok:true});
+    };
+
+    /* Google Apps Script may redirect the POST response. The iframe load event
+       confirms the browser completed the submission; the sheet is reloaded
+       afterward to verify the resulting data. */
+    frame.onload=()=>finishOk();
 
     setTimeout(()=>{
       if(finished) return;
-      finished=true; cleanup(); resolve({ok:true});
-    },3000);
+      /* If the iframe did not fire onload, the request may still have reached
+         Apps Script. Give the server enough time before reloading the sheet. */
+      finishOk();
+    },7000);
 
     try{ form.submit(); }
     catch(err){
@@ -485,14 +506,25 @@ async function saveRow(){
     btn.disabled=true;
     btn.innerHTML='<span class="spinner-border spinner-border-sm"></span> กำลังบันทึก...';
 
+    const oldMonth=action==='update' ? rows[editingIndex]['เดือน'] : null;
+    const expectedMonth=values['เดือน'];
     await postApi(payload);
 
     bootstrap.Modal.getInstance($('rowModal'))?.hide();
-    setStatus('บันทึกคำสั่งแล้ว กำลังตรวจสอบข้อมูลใน Google Sheet...');
+    setStatus('ส่งคำสั่งแล้ว กำลังตรวจสอบข้อมูลจาก Published CSV...');
 
-    /* ให้ Apps Script เขียนเสร็จก่อน แล้วโหลด Published CSV ใหม่ */
-    await new Promise(r=>setTimeout(r,5000));
+    /* Apps Script อาจใช้เวลาเล็กน้อยก่อน Published CSV จะสะท้อนข้อมูล */
+    await new Promise(r=>setTimeout(r,6000));
     await load();
+
+    if(action==='append'){
+      const found=rows.some(r=>String(r['เดือน']).trim()===String(expectedMonth).trim());
+      if(!found) throw new Error('Apps Script รับคำสั่งแล้ว แต่ข้อมูลเดือน '+expectedMonth+' ยังไม่ปรากฏใน Published CSV (gid=0) กรุณาตรวจสอบว่า gid=0 เป็นชีตเดียวกับ แผ่น1');
+    }else{
+      const foundNew=rows.some(r=>String(r['เดือน']).trim()===String(expectedMonth).trim());
+      const oldStill=String(oldMonth).trim()!==String(expectedMonth).trim() && rows.some(r=>String(r['เดือน']).trim()===String(oldMonth).trim());
+      if(!foundNew || oldStill) throw new Error('บันทึกการแก้ไขแล้ว แต่ Published CSV (gid=0) ยังไม่สะท้อนข้อมูล กรุณาตรวจสอบว่า gid=0 เป็นชีตเดียวกับ แผ่น1');
+    }
 
     toast(action==='append'?'เพิ่มข้อมูลสำเร็จ':'แก้ไขข้อมูลสำเร็จ');
   }catch(error){
@@ -514,8 +546,11 @@ async function deleteRow(index){
   try{
     setStatus('กำลังลบข้อมูลจาก Google Sheet...');
     await postApi({action:'delete',month});
-    await new Promise(r=>setTimeout(r,5000));
+    await new Promise(r=>setTimeout(r,6000));
     await load();
+    if(rows.some(r=>String(r['เดือน']).trim()===String(month).trim())){
+      throw new Error('Apps Script รับคำสั่งลบแล้ว แต่ข้อมูลยังปรากฏใน Published CSV (gid=0) กรุณาตรวจสอบว่า gid=0 เป็นชีตเดียวกับ แผ่น1');
+    }
     toast('ลบข้อมูลสำเร็จ');
   }catch(error){
     console.error(error);
