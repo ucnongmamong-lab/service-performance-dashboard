@@ -1,5 +1,6 @@
 const CSV_URL='https://docs.google.com/spreadsheets/d/e/2PACX-1vQAFcBJvDUqxyx0xJmsqoGjG1XCbX8zNUory4qCmndR0gjxQSwQhtGN8OFk9uB8Co2VkD9AdsyOHFKX/pub?gid=638479938&single=true&output=csv';
 
+/* Web App URL ที่ผู้ใช้ deploy ไว้ */
 const API_URL='https://script.google.com/macros/s/AKfycbzBGl_rPjtlGPOOcvPbhGMIWhxUJG0QKTu9HhCNaGbkwfIovEOW31sdsSI5gbPt7-BP-w/exec';
 
 const cols=[
@@ -8,6 +9,7 @@ const cols=[
   'อัตราจ่าย/Adj.','หักเงินเดือน','คงเหลือรับ','ผู้รายงาน','วันที่รายงาน'
 ];
 
+/* ชีตกรอกข้อมูลมี 16 ช่อง และไม่มี "ที่"/"ผู้รายงาน" */
 const crudCols=[
   'เดือน','OP visit','NCD visit','Non NCD visit','Bed rate','Active bed',
   'Sum AdjRW','Sum AdjRWที่จ่าย','CMI','Fixed cost','LC(OT)',
@@ -20,620 +22,162 @@ const numericCols=[
   'อัตราจ่าย/Adj.','หักเงินเดือน','คงเหลือรับ'
 ];
 
-/* =========================================================
-   เดือนตามปีงบประมาณ
-   ต.ค. -> ก.ย.
-   ========================================================= */
-
 const fyMonths=[
-  'ตุลาคม',
-  'พฤศจิกายน',
-  'ธันวาคม',
-  'มกราคม',
-  'กุมภาพันธ์',
-  'มีนาคม',
-  'เมษายน',
-  'พฤษภาคม',
-  'มิถุนายน',
-  'กรกฎาคม',
-  'สิงหาคม',
-  'กันยายน'
+  'ตุลาคม','พฤศจิกายน','ธันวาคม','มกราคม','กุมภาพันธ์','มีนาคม',
+  'เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน'
 ];
 
 const monthShort={
-  'มกราคม':'ม.ค.',
-  'กุมภาพันธ์':'ก.พ.',
-  'มีนาคม':'มี.ค.',
-  'เมษายน':'เม.ย.',
-  'พฤษภาคม':'พ.ค.',
-  'มิถุนายน':'มิ.ย.',
-  'กรกฎาคม':'ก.ค.',
-  'สิงหาคม':'ส.ค.',
-  'กันยายน':'ก.ย.',
-  'ตุลาคม':'ต.ค.',
-  'พฤศจิกายน':'พ.ย.',
-  'ธันวาคม':'ธ.ค.'
+  'มกราคม':'ม.ค.','กุมภาพันธ์':'ก.พ.','มีนาคม':'มี.ค.','เมษายน':'เม.ย.',
+  'พฤษภาคม':'พ.ค.','มิถุนายน':'มิ.ย.','กรกฎาคม':'ก.ค.','สิงหาคม':'ส.ค.',
+  'กันยายน':'ก.ย.','ตุลาคม':'ต.ค.','พฤศจิกายน':'พ.ย.','ธันวาคม':'ธ.ค.'
 };
 
-/* รองรับทั้งชื่อเดือนเต็มและชื่อเดือนย่อจาก Google Sheet */
-const monthAliases={
-  'มกราคม':['มกราคม','ม.ค.','ม.ค'],
-  'กุมภาพันธ์':['กุมภาพันธ์','ก.พ.','ก.พ'],
-  'มีนาคม':['มีนาคม','มี.ค.','มี.ค'],
-  'เมษายน':['เมษายน','เม.ย.','เม.ย'],
-  'พฤษภาคม':['พฤษภาคม','พ.ค.','พ.ค'],
-  'มิถุนายน':['มิถุนายน','มิ.ย.','มิ.ย'],
-  'กรกฎาคม':['กรกฎาคม','ก.ค.','ก.ค'],
-  'สิงหาคม':['สิงหาคม','ส.ค.','ส.ค'],
-  'กันยายน':['กันยายน','ก.ย.','ก.ย'],
-  'ตุลาคม':['ตุลาคม','ต.ค.','ต.ค'],
-  'พฤศจิกายน':['พฤศจิกายน','พ.ย.','พ.ย'],
-  'ธันวาคม':['ธันวาคม','ธ.ค.','ธ.ค']
-};
-
-const icons=[
-  'people-fill',
-  'heart-pulse-fill',
-  'person-check-fill',
-  'cash-stack',
-  'hospital',
-  'graph-up-arrow'
-];
-
-const accents=[
-  '#0f5bd7',
-  '#0ca678',
-  '#1098ad',
-  '#f59f00',
-  '#e03131',
-  '#6842d8'
-];
+const icons=['people-fill','heart-pulse-fill','person-check-fill','cash-stack','hospital','graph-up-arrow'];
+const accents=['#0f5bd7','#0ca678','#1098ad','#f59f00','#e03131','#6842d8'];
 
 let rows=[];
-let trendChart;
-let visitChart;
-let changeChart;
-let metricChart;
+let trendChart,visitChart,changeChart,metricChart;
 let editingIndex=null;
 
 const $=id=>document.getElementById(id);
-
 const num=v=>{
-  const x=Number(
-    String(v??'')
-      .replace(/,/g,'')
-      .trim()
-  );
-
+  const x=Number(String(v??'').replace(/,/g,'').trim());
   return Number.isFinite(x)?x:null;
 };
-
-const money=new Intl.NumberFormat('th-TH',{
-  maximumFractionDigits:2
-});
-
-const integer=new Intl.NumberFormat('th-TH',{
-  maximumFractionDigits:0
-});
-
-/* =========================================================
-   CSV Parser
-   ========================================================= */
+const money=new Intl.NumberFormat('th-TH',{maximumFractionDigits:2});
+const integer=new Intl.NumberFormat('th-TH',{maximumFractionDigits:0});
 
 function parseCSV(text){
-
-  const out=[];
-  let row=[];
-  let cell='';
-  let quoted=false;
-
+  const out=[];let row=[],cell='',quoted=false;
   for(let i=0;i<text.length;i++){
-
-    const c=text[i];
-    const next=text[i+1];
-
-    if(c==='"' && quoted && next==='"'){
-      cell+='"';
-      i++;
-      continue;
+    const c=text[i],next=text[i+1];
+    if(c==='"' && quoted && next==='"'){cell+='"';i++;continue}
+    if(c==='"'){quoted=!quoted;continue}
+    if(c===','&&!quoted){row.push(cell);cell='';continue}
+    if((c==='\n'||c==='\r')&&!quoted){
+      if(c==='\r'&&next==='\n')i++;
+      row.push(cell);cell='';
+      if(row.some(x=>x.trim()!==''))out.push(row);
+      row=[];continue;
     }
-
-    if(c==='"'){
-      quoted=!quoted;
-      continue;
-    }
-
-    if(c===',' && !quoted){
-      row.push(cell);
-      cell='';
-      continue;
-    }
-
-    if((c==='\n'||c==='\r') && !quoted){
-
-      if(c==='\r' && next==='\n'){
-        i++;
-      }
-
-      row.push(cell);
-      cell='';
-
-      if(row.some(x=>x.trim()!=='')){
-        out.push(row);
-      }
-
-      row=[];
-      continue;
-    }
-
     cell+=c;
   }
-
-  if(cell!=='' || row.length){
-    row.push(cell);
-    out.push(row);
-  }
-
+  if(cell!==''||row.length){row.push(cell);out.push(row)}
   return out;
 }
 
 function parseRows(text){
-
-  const a=parseCSV(text);
-  const h=a[0]||[];
-
-  return a
-    .slice(1)
-    .map(r=>Object.fromEntries(
-      h.map((k,i)=>[
-        k,
-        (r[i]??'').trim()
-      ])
-    ))
+  const a=parseCSV(text),h=a[0]||[];
+  return a.slice(1)
+    .map(r=>Object.fromEntries(h.map((k,i)=>[k,(r[i]??'').trim()])))
     .filter(r=>r['เดือน']);
 }
 
-/* =========================================================
-   แปลงเดือน
-   ========================================================= */
-
 function monthIndex(monthText){
-
-  const text=String(monthText||'')
-    .trim()
-    .replace(/\s+/g,'');
-
-  for(let i=0;i<fyMonths.length;i++){
-
-    const fullName=fyMonths[i];
-    const aliases=monthAliases[fullName]||[];
-
-    if(
-      text.startsWith(fullName) ||
-      aliases.some(
-        alias=>text.startsWith(alias)
-      )
-    ){
-      return i;
-    }
-  }
-
-  return -1;
+  const s=monthText||'';
+  return fyMonths.findIndex(m=>s.startsWith(m));
 }
 
-/* =========================================================
-   คำนวณปีงบประมาณ
-   ========================================================= */
-
 function fiscalYear(row){
-
-  const text=
-    String(row?.['เดือน']||'')
-      .trim();
-
-  if(!text){
-    return '';
-  }
-
-  /*
-    รองรับตัวอย่าง:
-    ต.ค.67
-    ต.ค.68
-    ต.ค.2568
-    ต.ค.2025
-  */
-
-  const match=
-    text.match(/(\d{2,4})\s*$/);
-
-  if(!match){
-    return '';
-  }
-
-  let year=
-    Number(match[1]);
-
-  /* ค.ศ. -> พ.ศ. */
-
-  if(
-    year>=1900 &&
-    year<2400
-  ){
-    year+=543;
-
-  }else if(
-    year<100
-  ){
-
-    /* 68 -> 2568 */
-
-    year+=2500;
-  }
-
-  const mi=
-    monthIndex(text);
-
-  if(mi<0){
-    return '';
-  }
-
-  /*
-    ต.ค.-ธ.ค.
-    เป็นปีงบประมาณถัดไป
-  */
-
-  if(mi<=2){
-    year+=1;
-  }
-
+  const text=row?.['เดือน']||'';
+  const m=text.match(/(25\d{2}|20\d{2})$/);
+  if(!m)return '';
+  let year=Number(m[1]);
+  const mi=monthIndex(text);
+  if(mi>=0&&mi<=2)year+=1; // ต.ค.-ธ.ค.
   return String(year);
 }
 
-/* =========================================================
-   เรียงข้อมูล
-   ========================================================= */
-
 function sortRows(data){
-
   return [...data].sort((a,b)=>{
-
-    const fyA=
-      Number(fiscalYear(a)||0);
-
-    const fyB=
-      Number(fiscalYear(b)||0);
-
-    if(fyA!==fyB){
-      return fyA-fyB;
-    }
-
-    const ma=
-      monthIndex(a['เดือน']);
-
-    const mb=
-      monthIndex(b['เดือน']);
-
+    const fyA=Number(fiscalYear(a)||0),fyB=Number(fiscalYear(b)||0);
+    if(fyA!==fyB)return fyA-fyB;
+    const ma=monthIndex(a['เดือน']),mb=monthIndex(b['เดือน']);
     return ma-mb;
   });
 }
 
-/* =========================================================
-   Label เดือน
-   ========================================================= */
-
 function monthLabel(text){
-
-  const mi=
-    monthIndex(text);
-
-  const name=
-    mi>=0
-      ?fyMonths[mi]
-      :'';
-
-  const year=
-    (
-      String(text||'')
-        .match(/(\d{2,4})$/)
-      ||[]
-    )[1]||'';
-
-  return `${
-    monthShort[name]||name
-  } ${year.slice(-2)}`;
+  const mi=monthIndex(text);
+  const name=mi>=0?fyMonths[mi]:'';
+  const year=(text.match(/(25\d{2}|20\d{2})$/)||[])[1]||'';
+  return `${monthShort[name]||name} ${year.slice(-2)}`;
 }
 
-/* =========================================================
-   คำนวณตัวเลข
-   ========================================================= */
-
-function sum(data,key){
-
-  return data.reduce(
-    (s,r)=>
-      s+(num(r[key])||0),
-    0
-  );
-}
-
-function avg(data,key){
-
-  return data.length
-    ?sum(data,key)/data.length
-    :0;
-}
-
+function sum(data,key){return data.reduce((s,r)=>s+(num(r[key])||0),0)}
+function avg(data,key){return data.length?sum(data,key)/data.length:0}
 function pct(current,previous){
-
-  if(
-    previous===null ||
-    previous===undefined ||
-    previous===0
-  ){
-    return null;
-  }
-
-  return (
-    (current-previous)/
-    Math.abs(previous)
-  )*100;
+  if(previous===null||previous===undefined||previous===0)return null;
+  return ((current-previous)/Math.abs(previous))*100;
 }
-
 function formatValue(v,key){
-
-  if(
-    v===null ||
-    v===undefined ||
-    v===''
-  ){
-    return '—';
-  }
-
-  if(
-    numericCols.includes(key)
-  ){
-    return money.format(
-      num(v)||0
-    );
-  }
-
+  if(v===null||v===undefined||v==='')return '—';
+  if(numericCols.includes(key))return money.format(num(v)||0);
   return v;
 }
 
-/* =========================================================
-   Status
-   ========================================================= */
-
-function setStatus(
-  text,
-  type='ok'
-){
-
+function setStatus(text,type='ok'){
   $('status').textContent=text;
-
-  $('statusDot').className=
-    'status-dot '+
-    (
-      type==='error'
-        ?'error'
-        :'ok'
-    );
+  $('statusDot').className='status-dot '+(type==='error'?'error':'ok');
 }
 
 function toast(text){
-
   $('toastText').textContent=text;
-
   $('toast').classList.add('show');
-
-  setTimeout(
-    ()=>
-      $('toast').classList.remove('show'),
-    2600
-  );
+  setTimeout(()=>$('toast').classList.remove('show'),2600);
 }
 
-/* =========================================================
-   Load
-   ========================================================= */
-
 async function load(){
-
-  setStatus(
-    'กำลังโหลดข้อมูลจาก Google Sheet...'
-  );
-
+  setStatus('กำลังโหลดข้อมูลจาก Google Sheet...');
   try{
-
-    const response=
-      await fetch(
-        CSV_URL,
-        {
-          cache:'no-store'
-        }
-      );
-
-    if(!response.ok){
-
-      throw new Error(
-        'ไม่สามารถโหลด Published CSV ได้'
-      );
-    }
-
-    const text=
-      await response.text();
-
-    rows=
-      sortRows(
-        parseRows(text)
-      );
-
+    const response=await fetch(CSV_URL,{cache:'no-store'});
+    if(!response.ok)throw new Error('ไม่สามารถโหลด Published CSV ได้');
+    rows=sortRows(parseRows(await response.text()));
     initFilters();
-
     render();
-
-    setStatus(
-      `เชื่อมต่อแล้ว • ${rows.length} รายการ • ${new Date().toLocaleTimeString('th-TH')}`
-    );
-
+    setStatus(`เชื่อมต่อแล้ว • ${rows.length} รายการ • ${new Date().toLocaleTimeString('th-TH')}`);
   }catch(error){
-
     console.error(error);
-
-    setStatus(
-      error.message||
-      'โหลดข้อมูลไม่สำเร็จ',
-      'error'
-    );
+    setStatus(error.message||'โหลดข้อมูลไม่สำเร็จ','error');
   }
 }
 
-/* =========================================================
-   สร้างตัวกรอง
-   ========================================================= */
-
 function initFilters(){
-
-  const years=[
-    ...new Set(
-      rows
-        .map(fiscalYear)
-        .filter(Boolean)
-    )
-  ]
-  .sort(
-    (a,b)=>
-      Number(a)-Number(b)
-  );
+  const years=[...new Set(rows.map(fiscalYear).filter(Boolean))]
+    .sort((a,b)=>Number(a)-Number(b));
 
   $('yearFilter').innerHTML=
     '<option value="all">ทุกปีงบประมาณ</option>'+
-    years
-      .map(
-        y=>
-          `<option value="${y}">
-            ปีงบประมาณ ${y}
-          </option>`
-      )
-      .join('');
-
-  /*
-    สำคัญมาก:
-    value ของเดือนเป็นตัวเลข 0-11
-
-    0 = ตุลาคม
-    1 = พฤศจิกายน
-    2 = ธันวาคม
-    3 = มกราคม
-    ...
-    11 = กันยายน
-  */
+    years.map(y=>`<option value="${y}">ปีงบประมาณ ${y}</option>`).join('');
 
   $('monthFilter').innerHTML=
     '<option value="all">ทุกเดือน</option>'+
-    fyMonths
-      .map(
-        (m,index)=>
-          `<option value="${index}">
-            ${monthShort[m]}
-          </option>`
-      )
-      .join('');
+    fyMonths.map(m=>`<option value="${m}">${m}</option>`).join('');
 
   $('metricFilter').innerHTML=[
-    'OP visit',
-    'NCD visit',
-    'Non NCD visit',
-    'คงเหลือรับ',
-    'Bed rate',
-    'CMI',
-    'Sum AdjRW',
-    'ยอดพิจารณาจ่าย IP'
-  ]
-  .map(
-    k=>
-      `<option value="${k}">
-        ${k}
-      </option>`
-  )
-  .join('');
+    'OP visit','NCD visit','Non NCD visit','คงเหลือรับ','Bed rate','CMI',
+    'Sum AdjRW','ยอดพิจารณาจ่าย IP'
+  ].map(k=>`<option value="${k}">${k}</option>`).join('');
 }
-
-/* =========================================================
-   FILTER DATA
-   ========================================================= */
 
 function filtered(){
+  const y=$('yearFilter').value;
+  const m=$('monthFilter').value;
+  const q=$('search').value.trim().toLowerCase();
 
-  const y=
-    $('yearFilter').value;
-
-  const m=
-    $('monthFilter').value;
-
-  const q=
-    $('search').value
-      .trim()
-      .toLowerCase();
-
-  return sortRows(
-    rows.filter(r=>{
-
-      const okYear=
-        y==='all' ||
-        fiscalYear(r)===y;
-
-      /*
-        สำคัญมาก:
-        ไม่ใช้ startsWith กับชื่อเดือนแล้ว
-
-        เพราะข้อมูลจริงใน Sheet เช่น:
-        ต.ค.68
-        พ.ย.68
-        ธ.ค.68
-
-        monthIndex() จะเปลี่ยนเป็น
-        0, 1, 2 ... 11
-      */
-
-      const okMonth=
-        m==='all' ||
-        monthIndex(
-          r['เดือน']
-        )===Number(m);
-
-      const okSearch=
-        !q ||
-        Object
-          .values(r)
-          .join(' ')
-          .toLowerCase()
-          .includes(q);
-
-      return (
-        okYear &&
-        okMonth &&
-        okSearch
-      );
-    })
-  );
+  return sortRows(rows.filter(r=>{
+    const okYear=y==='all'||fiscalYear(r)===y;
+    const okMonth=m==='all'||(r['เดือน']||'').startsWith(m);
+    const okSearch=!q||Object.values(r).join(' ').toLowerCase().includes(q);
+    return okYear&&okMonth&&okSearch;
+  }));
 }
 
-/* =========================================================
-   Render ทั้งหมด
-   ========================================================= */
-
 function render(){
-
-  const data=
-    filtered();
-
-  $('count').textContent=
-    `${data.length} รายการ`;
-
-  $('countData').textContent=
-    `${data.length} รายการ`;
-
+  const data=filtered();
+  $('count').textContent=`${data.length} รายการ`;
+  $('countData').textContent=`${data.length} รายการ`;
   renderKPI(data);
   renderCharts(data);
   renderRank(data);
@@ -642,1573 +186,437 @@ function render(){
   renderTable(data);
 }
 
-/* =========================================================
-   KPI
-   ========================================================= */
-
 function renderKPI(data){
-
-  const latest=
-    data[data.length-1];
-
-  const previous=
-    data.length>1
-      ?data[data.length-2]
-      :null;
+  const latest=data[data.length-1];
+  const previous=data.length>1?data[data.length-2]:null;
 
   const cards=[
-
-    [
-      'OP visit',
-      sum(data,'OP visit'),
-      'ครั้ง',
-      'people-fill'
-    ],
-
-    [
-      'NCD visit',
-      sum(data,'NCD visit'),
-      'ครั้ง',
-      'heart-pulse-fill'
-    ],
-
-    [
-      'Non NCD visit',
-      sum(data,'Non NCD visit'),
-      'ครั้ง',
-      'person-check-fill'
-    ],
-
-    [
-      'คงเหลือรับ',
-      sum(data,'คงเหลือรับ'),
-      'บาท',
-      'cash-stack'
-    ],
-
-    [
-      'Bed rate',
-      avg(data,'Bed rate'),
-      '%',
-      'hospital'
-    ],
-
-    [
-      'CMI',
-      avg(data,'CMI'),
-      'เฉลี่ย',
-      'graph-up-arrow'
-    ]
+    ['OP visit',sum(data,'OP visit'),'ครั้ง','people-fill'],
+    ['NCD visit',sum(data,'NCD visit'),'ครั้ง','heart-pulse-fill'],
+    ['Non NCD visit',sum(data,'Non NCD visit'),'ครั้ง','person-check-fill'],
+    ['คงเหลือรับ',sum(data,'คงเหลือรับ'),'บาท','cash-stack'],
+    ['Bed rate',avg(data,'Bed rate'),'%','hospital'],
+    ['CMI',avg(data,'CMI'),'เฉลี่ย','graph-up-arrow']
   ];
 
-  $('kpis').innerHTML=
-    cards
-      .map(
-        ([key,value,unit,icon],i)=>{
+  $('kpis').innerHTML=cards.map(([key,value,unit,icon],i)=>{
+    const latestValue=num(latest?.[key]);
+    const previousValue=num(previous?.[key]);
+    const change=pct(latestValue,previousValue);
+    const cls=change===null?'flat':change>0?'up':change<0?'down':'flat';
+    const arrow=change>0?'▲':change<0?'▼':'—';
 
-          const latestValue=
-            num(latest?.[key]);
-
-          const previousValue=
-            num(previous?.[key]);
-
-          const change=
-            pct(
-              latestValue,
-              previousValue
-            );
-
-          const cls=
-            change===null
-              ?'flat'
-              :change>0
-                ?'up'
-                :change<0
-                  ?'down'
-                  :'flat';
-
-          const arrow=
-            change>0
-              ?'▲'
-              :change<0
-                ?'▼'
-                :'—';
-
-          return `
-            <article
-              class="kpi-card"
-              style="--accent:${accents[i]}"
-            >
-
-              <div class="kpi-icon">
-                <i class="bi bi-${icon}"></i>
-              </div>
-
-              <div class="kpi-label">
-                ${key}
-              </div>
-
-              <div class="kpi-value">
-                ${money.format(value)}
-              </div>
-
-              <div class="kpi-unit">
-                ${unit}
-              </div>
-
-              <div class="kpi-change ${cls}">
-
-                ${
-                  change===null
-                    ?'ไม่มีฐานเปรียบเทียบ'
-                    :`${arrow} ${Math.abs(change).toFixed(1)}% จากเดือนก่อน`
-                }
-
-              </div>
-
-            </article>
-          `;
-        }
-      )
-      .join('');
+    return `<article class="kpi-card" style="--accent:${accents[i]}">
+      <div class="kpi-icon"><i class="bi bi-${icon}"></i></div>
+      <div class="kpi-label">${key}</div>
+      <div class="kpi-value">${money.format(value)}</div>
+      <div class="kpi-unit">${unit}</div>
+      <div class="kpi-change ${cls}">
+        ${change===null?'ไม่มีฐานเปรียบเทียบ':`${arrow} ${Math.abs(change).toFixed(1)}% จากเดือนก่อน`}
+      </div>
+    </article>`;
+  }).join('');
 }
 
-/* =========================================================
-   Charts
-   ========================================================= */
-
 function renderCharts(data){
-
-  const labels=
-    data.map(
-      r=>monthLabel(
-        r['เดือน']
-      )
-    );
-
-  const metric=
-    $('metricFilter').value;
-
-  const values=
-    data.map(
-      r=>num(r[metric])||0
-    );
+  const labels=data.map(r=>monthLabel(r['เดือน']));
+  const metric=$('metricFilter').value;
+  const values=data.map(r=>num(r[metric])||0);
 
   trendChart?.destroy();
   visitChart?.destroy();
 
-  trendChart=
-    new Chart(
-      $('trendChart'),
-      {
-        type:'line',
-
-        data:{
-          labels,
-
-          datasets:[
-            {
-              label:metric,
-              data:values,
-
-              borderColor:'#0f5bd7',
-
-              backgroundColor:
-                'rgba(15,91,215,.10)',
-
-              fill:true,
-
-              tension:.35,
-
-              pointRadius:
-                data.length>40
-                  ?2.5
-                  :4,
-
-              pointHoverRadius:6,
-
-              borderWidth:3
-            }
-          ]
-        },
-
-        options:{
-          responsive:true,
-          maintainAspectRatio:false,
-
-          interaction:{
-            mode:'index',
-            intersect:false
-          },
-
-          plugins:{
-
-            legend:{
-              display:true,
-
-              labels:{
-                font:{
-                  family:'Prompt',
-                  size:11
-                }
-              }
-            },
-
-            tooltip:{
-              callbacks:{
-                label:ctx=>
-                  `${ctx.dataset.label}: ${money.format(ctx.parsed.y)}`
-              }
-            }
-          },
-
-          scales:{
-
-            x:{
-              grid:{
-                display:false
-              },
-
-              ticks:{
-                maxRotation:45,
-                minRotation:0,
-
-                font:{
-                  family:'Prompt',
-                  size:9
-                }
-              }
-            },
-
-            y:{
-              beginAtZero:true,
-
-              grid:{
-                color:
-                  'rgba(100,120,150,.10)'
-              },
-
-              ticks:{
-                font:{
-                  family:'Prompt',
-                  size:9
-                }
-              }
-            }
-          }
-        }
+  trendChart=new Chart($('trendChart'),{
+    type:'line',
+    data:{
+      labels,
+      datasets:[{
+        label:metric,
+        data:values,
+        borderColor:'#0f5bd7',
+        backgroundColor:'rgba(15,91,215,.10)',
+        fill:true,
+        tension:.35,
+        pointRadius:data.length>40?2.5:4,
+        pointHoverRadius:6,
+        borderWidth:3
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{display:true,labels:{font:{family:'Prompt',size:11}}},
+        tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${money.format(ctx.parsed.y)}`}}
+      },
+      scales:{
+        x:{grid:{display:false},ticks:{maxRotation:45,minRotation:0,font:{family:'Prompt',size:9}}},
+        y:{beginAtZero:true,grid:{color:'rgba(100,120,150,.10)'},ticks:{font:{family:'Prompt',size:9}}}
       }
-    );
+    }
+  });
 
-  visitChart=
-    new Chart(
-      $('visitChart'),
-      {
-        type:'doughnut',
-
-        data:{
-          labels:[
-            'OP visit',
-            'NCD visit',
-            'Non NCD visit'
-          ],
-
-          datasets:[
-            {
-              data:[
-                sum(data,'OP visit'),
-                sum(data,'NCD visit'),
-                sum(data,'Non NCD visit')
-              ],
-
-              backgroundColor:[
-                '#0f5bd7',
-                '#0ca678',
-                '#1098ad'
-              ],
-
-              borderColor:'#fff',
-
-              borderWidth:4
-            }
-          ]
-        },
-
-        options:{
-          responsive:true,
-          maintainAspectRatio:false,
-
-          cutout:'67%',
-
-          plugins:{
-
-            legend:{
-              position:'bottom',
-
-              labels:{
-                font:{
-                  family:'Prompt',
-                  size:10
-                },
-
-                usePointStyle:true
-              }
-            },
-
-            tooltip:{
-              callbacks:{
-                label:ctx=>
-                  `${ctx.label}: ${integer.format(ctx.raw)} ครั้ง`
-              }
-            }
-          }
-        }
+  visitChart=new Chart($('visitChart'),{
+    type:'doughnut',
+    data:{
+      labels:['OP visit','NCD visit','Non NCD visit'],
+      datasets:[{
+        data:[sum(data,'OP visit'),sum(data,'NCD visit'),sum(data,'Non NCD visit')],
+        backgroundColor:['#0f5bd7','#0ca678','#1098ad'],
+        borderColor:'#fff',
+        borderWidth:4
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,cutout:'67%',
+      plugins:{
+        legend:{position:'bottom',labels:{font:{family:'Prompt',size:10},usePointStyle:true}},
+        tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${integer.format(ctx.raw)} ครั้ง`}}
       }
-    );
+    }
+  });
 }
-
-/* =========================================================
-   Ranking
-   ========================================================= */
 
 function renderRank(data){
+  const metric=$('metricFilter').value;
+  const scored=data.map(r=>({...r,_value:num(r[metric])||0}))
+    .sort((a,b)=>b._value-a._value);
 
-  const metric=
-    $('metricFilter').value;
+  const make=(items)=>items.slice(0,5).map((r,i)=>`
+    <div class="rank-row">
+      <span class="rank-no">${i+1}</span>
+      <span class="rank-month">${monthLabel(r['เดือน'])}</span>
+      <span class="rank-value">${money.format(r._value)}</span>
+    </div>
+  `).join('')||'<div class="small-note">ไม่มีข้อมูล</div>';
 
-  const scored=
-    data
-      .map(
-        r=>({
-          ...r,
-          _value:
-            num(r[metric])||0
-        })
-      )
-      .sort(
-        (a,b)=>
-          b._value-a._value
-      );
-
-  const make=items=>
-    items
-      .slice(0,5)
-      .map(
-        (r,i)=>`
-
-          <div class="rank-row">
-
-            <span class="rank-no">
-              ${i+1}
-            </span>
-
-            <span class="rank-month">
-              ${monthLabel(
-                r['เดือน']
-              )}
-            </span>
-
-            <span class="rank-value">
-              ${money.format(
-                r._value
-              )}
-            </span>
-
-          </div>
-
-        `
-      )
-      .join('')
-      ||
-      '<div class="small-note">ไม่มีข้อมูล</div>';
-
-  $('topTable').innerHTML=
-    make(scored);
-
-  $('bottomTable').innerHTML=
-    make(
-      [...scored].reverse()
-    );
+  $('topTable').innerHTML=make(scored);
+  $('bottomTable').innerHTML=make([...scored].reverse());
 }
 
-/* =========================================================
-   Watch List
-   ========================================================= */
-
 function renderWatchList(data){
-
   const items=[];
 
   data.forEach(r=>{
-
-    const missing=
-      numericCols.filter(
-        k=>
-          r[k]==='' ||
-          r[k]===null ||
-          r[k]===undefined
-      );
-
+    const missing=numericCols.filter(k=>r[k]===''||r[k]===null||r[k]===undefined);
     if(missing.length){
-
       items.push({
-
-        icon:
-          'exclamation-triangle-fill',
-
-        title:
-          monthLabel(
-            r['เดือน']
-          ),
-
-        detail:
-          `ข้อมูลยังไม่ครบ: ${missing.slice(0,3).join(', ')}${
-            missing.length>3
-              ?' และอื่น ๆ'
-              :''
-          }`
+        icon:'exclamation-triangle-fill',
+        title:monthLabel(r['เดือน']),
+        detail:`ข้อมูลยังไม่ครบ: ${missing.slice(0,3).join(', ')}${missing.length>3?' และอื่น ๆ':''}`
       });
-
       return;
     }
 
-    const remain=
-      num(
-        r['คงเหลือรับ']
-      );
-
-    if(
-      remain!==null &&
-      remain<0
-    ){
-
+    const remain=num(r['คงเหลือรับ']);
+    if(remain!==null&&remain<0){
       items.push({
-
         icon:'cash-coin',
-
-        title:
-          monthLabel(
-            r['เดือน']
-          ),
-
-        detail:
-          'คงเหลือรับติดลบ ควรตรวจสอบข้อมูลการเงิน'
+        title:monthLabel(r['เดือน']),
+        detail:'คงเหลือรับติดลบ ควรตรวจสอบข้อมูลการเงิน'
       });
-
       return;
     }
 
-    const bed=
-      num(
-        r['Bed rate']
-      );
-
-    if(
-      bed!==null &&
-      bed<50
-    ){
-
+    const bed=num(r['Bed rate']);
+    if(bed!==null&&bed<50){
       items.push({
-
-        icon:
-          'hospital-fill',
-
-        title:
-          monthLabel(
-            r['เดือน']
-          ),
-
-        detail:
-          `Bed rate ${money.format(
-            bed
-          )}% ควรติดตาม`
+        icon:'hospital-fill',
+        title:monthLabel(r['เดือน']),
+        detail:`Bed rate ${money.format(bed)}% ควรติดตาม`
       });
     }
   });
 
-  const unique=
-    items
-      .filter(
-        (x,i,a)=>
-          a.findIndex(
-            y=>
-              y.title===x.title &&
-              y.detail===x.detail
-          )===i
-      )
-      .slice(0,8);
+  const unique=items.filter((x,i,a)=>a.findIndex(y=>y.title===x.title&&y.detail===x.detail)===i).slice(0,8);
 
-  $('watchList').innerHTML=
-    unique.length
-
-      ?unique
-        .map(
-          x=>`
-
-            <div class="watch-item">
-
-              <div class="watch-icon">
-                <i class="bi bi-${x.icon}"></i>
-              </div>
-
-              <div>
-
-                <div class="watch-title">
-                  ${x.title}
-                </div>
-
-                <div class="watch-detail">
-                  ${x.detail}
-                </div>
-
-              </div>
-
-            </div>
-
-          `
-        )
-        .join('')
-
-      :'<div class="small-note">ไม่พบรายการที่ควรติดตามจากข้อมูลปัจจุบัน</div>';
+  $('watchList').innerHTML=unique.length
+    ?unique.map(x=>`<div class="watch-item">
+        <div class="watch-icon"><i class="bi bi-${x.icon}"></i></div>
+        <div><div class="watch-title">${x.title}</div><div class="watch-detail">${x.detail}</div></div>
+      </div>`).join('')
+    :'<div class="small-note">ไม่พบรายการที่ควรติดตามจากข้อมูลปัจจุบัน</div>';
 }
 
-/* =========================================================
-   Analysis
-   ========================================================= */
-
 function renderAnalysis(data){
-
-  const metric=
-    $('metricFilter').value;
-
-  const years=
-    [
-      ...new Set(
-        data
-          .map(fiscalYear)
-          .filter(Boolean)
-      )
-    ]
-    .sort(
-      (a,b)=>
-        Number(a)-Number(b)
-    );
+  const metric=$('metricFilter').value;
+  const years=[...new Set(data.map(fiscalYear).filter(Boolean))]
+    .sort((a,b)=>Number(a)-Number(b));
 
   let prev=null;
-
-  let html=`
-
-    <thead>
-
-      <tr>
-
-        <th>ปีงบฯ</th>
-        <th>เดือน</th>
-        <th>OP visit</th>
-        <th>NCD visit</th>
-        <th>Non NCD</th>
-        <th>คงเหลือรับ</th>
-        <th>Bed rate</th>
-        <th>CMI</th>
-        <th>${metric} %</th>
-
-      </tr>
-
-    </thead>
-
-    <tbody>
-  `;
+  let html=`<thead><tr>
+    <th>ปีงบฯ</th><th>เดือน</th><th>OP visit</th><th>NCD visit</th>
+    <th>Non NCD</th><th>คงเหลือรับ</th><th>Bed rate</th><th>CMI</th>
+    <th>${metric} %</th>
+  </tr></thead><tbody>`;
 
   years.forEach(y=>{
+    const yd=data.filter(r=>fiscalYear(r)===y);
+    const value=sum(yd,metric);
+    const change=pct(value,prev);
 
-    const yd=
-      data.filter(
-        r=>fiscalYear(r)===y
-      );
-
-    const value=
-      sum(
-        yd,
-        metric
-      );
-
-    const change=
-      pct(
-        value,
-        prev
-      );
-
-    html+=`
-
-      <tr>
-
-        <td>
-          <span class="badge text-bg-primary">
-            FY ${y}
-          </span>
-        </td>
-
-        <td>
-          ${yd.length}/12
-        </td>
-
-        <td>
-          ${integer.format(
-            sum(
-              yd,
-              'OP visit'
-            )
-          )}
-        </td>
-
-        <td>
-          ${integer.format(
-            sum(
-              yd,
-              'NCD visit'
-            )
-          )}
-        </td>
-
-        <td>
-          ${integer.format(
-            sum(
-              yd,
-              'Non NCD visit'
-            )
-          )}
-        </td>
-
-        <td>
-          ${money.format(
-            sum(
-              yd,
-              'คงเหลือรับ'
-            )
-          )}
-        </td>
-
-        <td>
-          ${money.format(
-            avg(
-              yd,
-              'Bed rate'
-            )
-          )}%
-        </td>
-
-        <td>
-          ${money.format(
-            avg(
-              yd,
-              'CMI'
-            )
-          )}
-        </td>
-
-        <td class="${
-          change>0
-            ?'delta-up'
-            :change<0
-              ?'delta-down'
-              :'delta-flat'
-        }">
-
-          ${
-            change===null
-              ?'—'
-              :`${change>0?'▲':change<0?'▼':'—'} ${Math.abs(change).toFixed(1)}%`
-          }
-
-        </td>
-
-      </tr>
-
-    `;
-
+    html+=`<tr>
+      <td><span class="badge text-bg-primary">FY ${y}</span></td>
+      <td>${yd.length}/12</td>
+      <td>${integer.format(sum(yd,'OP visit'))}</td>
+      <td>${integer.format(sum(yd,'NCD visit'))}</td>
+      <td>${integer.format(sum(yd,'Non NCD visit'))}</td>
+      <td>${money.format(sum(yd,'คงเหลือรับ'))}</td>
+      <td>${money.format(avg(yd,'Bed rate'))}%</td>
+      <td>${money.format(avg(yd,'CMI'))}</td>
+      <td class="${change>0?'delta-up':change<0?'delta-down':'delta-flat'}">
+        ${change===null?'—':`${change>0?'▲':change<0?'▼':'—'} ${Math.abs(change).toFixed(1)}%`}
+      </td>
+    </tr>`;
     prev=value;
   });
 
-  html+=`
-    </tbody>
-  `;
+  html+='</tbody>';
+  $('yearTable').innerHTML=html;
 
-  $('yearTable').innerHTML=
-    html;
-
-  const latest=
-    data[data.length-1];
-
-  const previous=
-    data.length>1
-      ?data[data.length-2]
-      :null;
-
-  const change=
-    pct(
-      num(latest?.[metric]),
-      num(previous?.[metric])
-    );
+  const latest=data[data.length-1];
+  const previous=data.length>1?data[data.length-2]:null;
+  const change=pct(num(latest?.[metric]),num(previous?.[metric]));
 
   $('analysisCards').innerHTML=[
-
-    [
-      'ตัวชี้วัด',
-      metric
-    ],
-
-    [
-      'เดือนล่าสุด',
-      latest
-        ?monthLabel(
-          latest['เดือน']
-        )
-        :'—'
-    ],
-
-    [
-      'ค่าเดือนล่าสุด',
-      latest
-        ?money.format(
-          num(
-            latest[metric]
-          )||0
-        )
-        :'—'
-    ],
-
-    [
-      'เทียบเดือนก่อน',
-      change===null
-        ?'—'
-        :`${change>0?'▲ ':change<0?'▼ ':''}${Math.abs(change).toFixed(1)}%`
-    ]
-
-  ]
-  .map(
-    x=>`
-
-      <div class="analysis-card">
-
-        <div class="label">
-          ${x[0]}
-        </div>
-
-        <div class="value">
-          ${x[1]}
-        </div>
-
-      </div>
-
-    `
-  )
-  .join('');
+    ['ตัวชี้วัด',metric],
+    ['เดือนล่าสุด',latest?monthLabel(latest['เดือน']):'—'],
+    ['ค่าเดือนล่าสุด',latest?money.format(num(latest[metric])||0):'—'],
+    ['เทียบเดือนก่อน',change===null?'—':`${change>0?'▲ ':change<0?'▼ ':''}${Math.abs(change).toFixed(1)}%`]
+  ].map((x,i)=>`<div class="analysis-card">
+      <div class="label">${x[0]}</div><div class="value">${x[1]}</div>
+    </div>`).join('');
 
   changeChart?.destroy();
   metricChart?.destroy();
 
-  changeChart=
-    new Chart(
-      $('changeChart'),
-      {
-        type:'bar',
-
-        data:{
-
-          labels:
-            data.map(
-              r=>
-                monthLabel(
-                  r['เดือน']
-                )
-            ),
-
-          datasets:[
-            {
-
-              label:
-                '% เปลี่ยนแปลงจากเดือนก่อน',
-
-              data:
-                data.map(
-                  (r,i)=>
-                    i
-                      ?pct(
-                        num(r[metric]),
-                        num(
-                          data[i-1][metric]
-                        )
-                      )||0
-                      :0
-                ),
-
-              backgroundColor:
-                data.map(
-                  (r,i)=>{
-
-                    const v=
-                      i
-                        ?pct(
-                          num(r[metric]),
-                          num(
-                            data[i-1][metric]
-                          )
-                        )||0
-                        :0;
-
-                    return v>=0
-                      ?'#0ca678'
-                      :'#e03131';
-                  }
-                ),
-
-              borderRadius:6
-            }
-          ]
-        },
-
-        options:{
-
-          responsive:true,
-
-          maintainAspectRatio:false,
-
-          plugins:{
-            legend:{
-              display:false
-            }
-          },
-
-          scales:{
-
-            x:{
-              grid:{
-                display:false
-              },
-
-              ticks:{
-                maxRotation:45,
-
-                font:{
-                  family:'Prompt',
-                  size:9
-                }
-              }
-            },
-
-            y:{
-
-              grid:{
-                color:
-                  'rgba(100,120,150,.10)'
-              },
-
-              ticks:{
-                font:{
-                  family:'Prompt',
-                  size:9
-                },
-
-                callback:v=>
-                  `${v}%`
-              }
-            }
-          }
-        }
+  changeChart=new Chart($('changeChart'),{
+    type:'bar',
+    data:{
+      labels:data.map(r=>monthLabel(r['เดือน'])),
+      datasets:[{
+        label:'% เปลี่ยนแปลงจากเดือนก่อน',
+        data:data.map((r,i)=>i?pct(num(r[metric]),num(data[i-1][metric]))||0:0),
+        backgroundColor:data.map((r,i)=>{
+          const v=i?pct(num(r[metric]),num(data[i-1][metric]))||0:0;
+          return v>=0?'#0ca678':'#e03131';
+        }),
+        borderRadius:6
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{grid:{display:false},ticks:{maxRotation:45,font:{family:'Prompt',size:9}}},
+        y:{grid:{color:'rgba(100,120,150,.10)'},ticks:{font:{family:'Prompt',size:9},callback:v=>`${v}%`}}
       }
-    );
+    }
+  });
 
-  metricChart=
-    new Chart(
-      $('metricChart'),
-      {
-        type:'line',
-
-        data:{
-
-          labels:
-            data.map(
-              r=>
-                monthLabel(
-                  r['เดือน']
-                )
-            ),
-
-          datasets:[
-            {
-
-              label:metric,
-
-              data:
-                data.map(
-                  r=>
-                    num(
-                      r[metric]
-                    )||0
-                ),
-
-              borderColor:
-                '#6842d8',
-
-              backgroundColor:
-                'rgba(104,66,216,.09)',
-
-              fill:true,
-
-              tension:.35,
-
-              borderWidth:3
-            }
-          ]
-        },
-
-        options:{
-
-          responsive:true,
-
-          maintainAspectRatio:false,
-
-          plugins:{
-            legend:{
-              labels:{
-                font:{
-                  family:'Prompt',
-                  size:10
-                }
-              }
-            }
-          },
-
-          scales:{
-
-            x:{
-              grid:{
-                display:false
-              },
-
-              ticks:{
-                maxRotation:45,
-
-                font:{
-                  family:'Prompt',
-                  size:9
-                }
-              }
-            },
-
-            y:{
-
-              grid:{
-                color:
-                  'rgba(100,120,150,.10)'
-              },
-
-              ticks:{
-                font:{
-                  family:'Prompt',
-                  size:9
-                }
-              }
-            }
-          }
-        }
+  metricChart=new Chart($('metricChart'),{
+    type:'line',
+    data:{
+      labels:data.map(r=>monthLabel(r['เดือน'])),
+      datasets:[{
+        label:metric,
+        data:data.map(r=>num(r[metric])||0),
+        borderColor:'#6842d8',
+        backgroundColor:'rgba(104,66,216,.09)',
+        fill:true,tension:.35,borderWidth:3
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{font:{family:'Prompt',size:10}}}},
+      scales:{
+        x:{grid:{display:false},ticks:{maxRotation:45,font:{family:'Prompt',size:9}}},
+        y:{grid:{color:'rgba(100,120,150,.10)'},ticks:{font:{family:'Prompt',size:9}}}
       }
-    );
+    }
+  });
 }
-
-/* =========================================================
-   Escape HTML
-   ========================================================= */
 
 function escapeHtml(v){
-
   return String(v??'')
-    .replace(/&/g,'&amp;')
-    .replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;');
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
-
-/* =========================================================
-   ตาราง
-   ========================================================= */
 
 function renderTable(data){
+  const head=cols.map(c=>`<th>${escapeHtml(c)}</th>`).join('');
+  const body=data.map(r=>{
+    const idx=rows.indexOf(r);
+    const cells=cols.map(c=>`<td>${escapeHtml(formatValue(r[c],c))}</td>`).join('');
+    return `<tr>${cells}<td class="action-cell">
+      <button class="action-btn edit-btn" onclick="editRow(${idx})"><i class="bi bi-pencil"></i> แก้ไข</button>
+      <button class="action-btn delete-btn" onclick="deleteRow(${idx})"><i class="bi bi-trash3"></i> ลบ</button>
+    </td></tr>`;
+  }).join('');
 
-  const head=
-    cols
-      .map(
-        c=>
-          `<th>${escapeHtml(c)}</th>`
-      )
-      .join('');
-
-  const body=
-    data
-      .map(r=>{
-
-        const idx=
-          rows.indexOf(r);
-
-        const cells=
-          cols
-            .map(
-              c=>
-                `<td>${escapeHtml(
-                  formatValue(
-                    r[c],
-                    c
-                  )
-                )}</td>`
-            )
-            .join('');
-
-        return `
-
-          <tr>
-
-            ${cells}
-
-            <td class="action-cell">
-
-              <button
-                class="action-btn edit-btn"
-                onclick="editRow(${idx})"
-              >
-                <i class="bi bi-pencil"></i>
-                แก้ไข
-              </button>
-
-              <button
-                class="action-btn delete-btn"
-                onclick="deleteRow(${idx})"
-              >
-                <i class="bi bi-trash3"></i>
-                ลบ
-              </button>
-
-            </td>
-
-          </tr>
-
-        `;
-      })
-      .join('');
-
-  $('dataTable').innerHTML=`
-
-    <thead>
-
-      <tr>
-
-        ${head}
-
-        <th class="action-cell">
-          จัดการ
-        </th>
-
-      </tr>
-
-    </thead>
-
-    <tbody>
-      ${body}
-    </tbody>
-
-  `;
+  $('dataTable').innerHTML=`<thead><tr>${head}<th class="action-cell">จัดการ</th></tr></thead><tbody>${body}</tbody>`;
 }
 
-/* =========================================================
-   CRUD Form
-   ========================================================= */
-
 function buildForm(row={}){
-
-  $('formGrid').innerHTML=
-    crudCols
-      .map(
-        c=>`
-
-          <div class="form-field">
-
-            <label>
-              ${escapeHtml(c)}
-            </label>
-
-            <input
-              data-field="${escapeHtml(c)}"
-              value="${escapeHtml(
-                row[c]??''
-              )}"
-            >
-
-          </div>
-
-        `
-      )
-      .join('');
+  $('formGrid').innerHTML=crudCols.map(c=>`
+    <div class="form-field">
+      <label>${escapeHtml(c)}</label>
+      <input data-field="${escapeHtml(c)}" value="${escapeHtml(row[c]??'')}">
+    </div>
+  `).join('');
 }
 
 function openModal(index=null){
-
   editingIndex=index;
-
-  $('modalTitle').textContent=
-    index===null
-      ?'เพิ่มข้อมูล'
-      :'แก้ไขข้อมูล';
-
-  buildForm(
-    index===null
-      ?{}
-      :rows[index]
-  );
-
-  bootstrap.Modal
-    .getOrCreateInstance(
-      $('rowModal')
-    )
-    .show();
+  $('modalTitle').textContent=index===null?'เพิ่มข้อมูล':'แก้ไขข้อมูล';
+  buildForm(index===null?{}:rows[index]);
+  bootstrap.Modal.getOrCreateInstance($('rowModal')).show();
 }
-
-/* =========================================================
-   Apps Script API
-   ========================================================= */
 
 function postApi(payload){
+  return new Promise((resolve,reject)=>{
+    if(!API_URL){
+      reject(new Error('ยังไม่ได้ตั้งค่า Apps Script Web App URL'));
+      return;
+    }
 
-  return new Promise(
-    (resolve,reject)=>{
+    const frameName='appsScriptSubmitFrame';
+    let frame=document.getElementById(frameName);
 
-      if(!API_URL){
+    if(!frame){
+      frame=document.createElement('iframe');
+      frame.id=frameName;
+      frame.name=frameName;
+      frame.style.display='none';
+      document.body.appendChild(frame);
+    }
 
-        reject(
-          new Error(
-            'ยังไม่ได้ตั้งค่า Apps Script Web App URL'
-          )
-        );
+    const form=document.createElement('form');
+    form.method='POST';
+    form.action=API_URL;
+    form.target=frameName;
+    form.style.display='none';
 
-        return;
-      }
+    const input=document.createElement('input');
+    input.type='hidden';
+    input.name='payload';
+    input.value=JSON.stringify(payload);
 
-      const frameName=
-        'appsScriptSubmitFrame';
+    form.appendChild(input);
+    document.body.appendChild(form);
 
-      let frame=
-        document.getElementById(
-          frameName
-        );
+    let finished=false;
+    const cleanup=()=>{try{form.remove()}catch(e){}};
 
-      if(!frame){
+    setTimeout(()=>{
+      if(finished)return;
+      finished=true;
+      cleanup();
+      resolve({ok:true});
+    },2500);
 
-        frame=
-          document.createElement(
-            'iframe'
-          );
-
-        frame.id=frameName;
-        frame.name=frameName;
-        frame.style.display='none';
-
-        document.body.appendChild(
-          frame
-        );
-      }
-
-      const form=
-        document.createElement(
-          'form'
-        );
-
-      form.method='POST';
-      form.action=API_URL;
-      form.target=frameName;
-      form.style.display='none';
-
-      const input=
-        document.createElement(
-          'input'
-        );
-
-      input.type='hidden';
-      input.name='payload';
-
-      input.value=
-        JSON.stringify(
-          payload
-        );
-
-      form.appendChild(input);
-
-      document.body.appendChild(
-        form
-      );
-
-      let finished=false;
-
-      const cleanup=()=>{
-
-        try{
-          form.remove();
-        }catch(e){}
-
-      };
-
-      setTimeout(
-        ()=>{
-
-          if(finished){
-            return;
-          }
-
-          finished=true;
-
-          cleanup();
-
-          resolve({
-            ok:true
-          });
-
-        },
-        2500
-      );
-
-      try{
-
-        form.submit();
-
-      }catch(err){
-
-        if(!finished){
-
-          finished=true;
-
-          cleanup();
-
-          reject(
-            new Error(
-              'ไม่สามารถส่งข้อมูลไป Google Apps Script ได้'
-            )
-          );
-        }
+    try{form.submit()}
+    catch(err){
+      if(!finished){
+        finished=true;cleanup();
+        reject(new Error('ไม่สามารถส่งข้อมูลไป Google Apps Script ได้'));
       }
     }
-  );
+  });
 }
-
-/* =========================================================
-   Save
-   ========================================================= */
 
 async function saveRow(){
-
-  const btn=
-    $('saveBtn');
+  const btn=$('saveBtn');
 
   try{
+    const values=Object.fromEntries(
+      [...document.querySelectorAll('#formGrid [data-field]')]
+        .map(x=>[x.dataset.field,x.value.trim()])
+    );
 
-    const values=
-      Object.fromEntries(
+    if(!values['เดือน'])throw new Error('กรุณาระบุเดือน');
 
-        [
-          ...document.querySelectorAll(
-            '#formGrid [data-field]'
-          )
-        ]
-
-        .map(
-          x=>[
-            x.dataset.field,
-            x.value.trim()
-          ]
-        )
-      );
-
-    if(!values['เดือน']){
-
-      throw new Error(
-        'กรุณาระบุเดือน'
-      );
-    }
-
-    const action=
-      editingIndex===null
-        ?'append'
-        :'update';
-
+    const action=editingIndex===null?'append':'update';
     const payload={
-
       action,
-
-      values:
-        crudCols.map(
-          c=>values[c]||''
-        )
+      values:crudCols.map(c=>values[c]||'')
     };
 
-    if(action==='update'){
-
-      payload.month=
-        rows[
-          editingIndex
-        ]['เดือน'];
-    }
+    if(action==='update')payload.month=rows[editingIndex]['เดือน'];
 
     btn.disabled=true;
+    btn.innerHTML='<span class="spinner-border spinner-border-sm"></span> กำลังบันทึก...';
 
-    btn.innerHTML=
-      '<span class="spinner-border spinner-border-sm"></span> กำลังบันทึก...';
+    await postApi(payload);
 
-    await postApi(
-      payload
-    );
-
-    bootstrap.Modal
-      .getInstance(
-        $('rowModal')
-      )
-      ?.hide();
-
-    setStatus(
-      'ส่งข้อมูลแล้ว กำลังรอ Google Sheet อัปเดต...'
-    );
-
-    await new Promise(
-      r=>setTimeout(
-        r,
-        4500
-      )
-    );
-
+    bootstrap.Modal.getInstance($('rowModal'))?.hide();
+    setStatus('ส่งข้อมูลแล้ว กำลังรอ Google Sheet อัปเดต...');
+    await new Promise(r=>setTimeout(r,4500));
     await load();
-
-    toast(
-      action==='append'
-        ?'เพิ่มข้อมูลสำเร็จ'
-        :'แก้ไขข้อมูลสำเร็จ'
-    );
+    toast(action==='append'?'เพิ่มข้อมูลสำเร็จ':'แก้ไขข้อมูลสำเร็จ');
 
   }catch(error){
-
     console.error(error);
-
-    setStatus(
-      error.message||
-      'บันทึกไม่สำเร็จ',
-      'error'
-    );
-
-    alert(
-      error.message||
-      'บันทึกข้อมูลไม่สำเร็จ'
-    );
-
+    setStatus(error.message||'บันทึกไม่สำเร็จ','error');
+    alert(error.message||'บันทึกข้อมูลไม่สำเร็จ');
   }finally{
-
     btn.disabled=false;
-
-    btn.innerHTML=
-      '<i class="bi bi-save2"></i> บันทึกข้อมูล';
+    btn.innerHTML='<i class="bi bi-save2"></i> บันทึกข้อมูล';
   }
 }
-
-/* =========================================================
-   Delete
-   ========================================================= */
 
 async function deleteRow(index){
+  const row=rows[index];
+  if(!row)return;
 
-  const row=
-    rows[index];
-
-  if(!row){
-    return;
-  }
-
-  const month=
-    row['เดือน'];
-
-  if(
-    !confirm(
-      `ยืนยันลบรายการ "${month}" ?`
-    )
-  ){
-    return;
-  }
+  const month=row['เดือน'];
+  if(!confirm(`ยืนยันลบรายการ "${month}" ?`))return;
 
   try{
-
-    setStatus(
-      'กำลังลบข้อมูลจาก Google Sheet...'
-    );
-
-    await postApi({
-
-      action:'delete',
-
-      month
-    });
-
-    await new Promise(
-      r=>setTimeout(
-        r,
-        4500
-      )
-    );
-
+    setStatus('กำลังลบข้อมูลจาก Google Sheet...');
+    await postApi({action:'delete',month});
+    await new Promise(r=>setTimeout(r,4500));
     await load();
-
-    toast(
-      'ลบข้อมูลสำเร็จ'
-    );
-
+    toast('ลบข้อมูลสำเร็จ');
   }catch(error){
-
     console.error(error);
-
-    setStatus(
-      error.message||
-      'ลบข้อมูลไม่สำเร็จ',
-      'error'
-    );
-
-    alert(
-      error.message||
-      'ลบข้อมูลไม่สำเร็จ'
-    );
+    setStatus(error.message||'ลบข้อมูลไม่สำเร็จ','error');
+    alert(error.message||'ลบข้อมูลไม่สำเร็จ');
   }
 }
-
-/* =========================================================
-   Switch View
-   ========================================================= */
 
 function switchView(view){
-
-  document
-    .querySelectorAll(
-      '.nav-tab'
-    )
-    .forEach(
-      btn=>{
-        btn.classList.toggle(
-          'active',
-          btn.dataset.view===view
-        );
-      }
-    );
-
-  [
-    'dashboard',
-    'analysis',
-    'data'
-  ]
-  .forEach(
-    v=>{
-      $(`view-${v}`)
-        .classList
-        .toggle(
-          'd-none',
-          v!==view
-        );
-    }
-  );
+  document.querySelectorAll('.nav-tab').forEach(btn=>{
+    btn.classList.toggle('active',btn.dataset.view===view);
+  });
+  ['dashboard','analysis','data'].forEach(v=>{
+    $(`view-${v}`).classList.toggle('d-none',v!==view);
+  });
 }
 
-/* =========================================================
-   Events
-   ========================================================= */
+document.querySelectorAll('.nav-tab').forEach(btn=>{
+  btn.addEventListener('click',()=>switchView(btn.dataset.view));
+});
 
-document
-  .querySelectorAll(
-    '.nav-tab'
-  )
-  .forEach(
-    btn=>{
+['yearFilter','monthFilter','search','metricFilter'].forEach(id=>{
+  $(id).addEventListener('input',render);
+  $(id).addEventListener('change',render);
+});
 
-      btn.addEventListener(
-        'click',
-        ()=>{
-          switchView(
-            btn.dataset.view
-          );
-        }
-      );
+$('refresh').addEventListener('click',load);
 
-    }
-  );
+$('reset').addEventListener('click',()=>{
+  $('yearFilter').value='all';
+  $('monthFilter').value='all';
+  $('search').value='';
+  $('metricFilter').value='OP visit';
+  render();
+});
 
-[
-  'yearFilter',
-  'monthFilter',
-  'search',
-  'metricFilter'
-]
-.forEach(
-  id=>{
+$('addBtn').addEventListener('click',()=>openModal());
+$('saveBtn').addEventListener('click',saveRow);
 
-    $(id).addEventListener(
-      'input',
-      render
-    );
-
-    $(id).addEventListener(
-      'change',
-      render
-    );
-
-  }
-);
-
-$('refresh')
-  .addEventListener(
-    'click',
-    load
-  );
-
-$('reset')
-  .addEventListener(
-    'click',
-    ()=>{
-
-      $('yearFilter').value=
-        'all';
-
-      $('monthFilter').value=
-        'all';
-
-      $('search').value=
-        '';
-
-      $('metricFilter').value=
-        'OP visit';
-
-      render();
-    }
-  );
-
-$('addBtn')
-  .addEventListener(
-    'click',
-    ()=>{
-      openModal();
-    }
-  );
-
-$('saveBtn')
-  .addEventListener(
-    'click',
-    saveRow
-  );
-
-window.editRow=
-  openModal;
-
-window.deleteRow=
-  deleteRow;
-
-/* =========================================================
-   Start
-   ========================================================= */
+window.editRow=openModal;
+window.deleteRow=deleteRow;
 
 load();
