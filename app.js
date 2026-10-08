@@ -80,12 +80,24 @@ function monthIndex(monthText){
 }
 
 function fiscalYear(row){
-  const text=row?.['เดือน']||'';
-  const m=text.match(/(25\d{2}|20\d{2})$/);
-  if(!m)return '';
-  let year=Number(m[1]);
+  const text=String(row?.['เดือน']||'').trim();
+  const match=text.match(/(\d{2,4})\s*$/);
+  if(!match)return '';
+
+  let year=Number(match[1]);
+
+  // รองรับทั้ง 2569, 69, 2026
+  if(year>=1900 && year<2400){
+    year += 543;
+  }else if(year<100){
+    year += 2500;
+  }
+
   const mi=monthIndex(text);
-  if(mi>=0&&mi<=2)year+=1; // ต.ค.-ธ.ค.
+  if(mi>=0 && mi<=2){
+    year += 1; // ต.ค.-ธ.ค. เป็นของปีงบประมาณถัดไป
+  }
+
   return String(year);
 }
 
