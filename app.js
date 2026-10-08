@@ -24,6 +24,11 @@ const crudCols = [
   'ยอดพิจารณาจ่าย IP','อัตราจ่าย/Adj.','หักเงินเดือน','คงเหลือรับ','วันที่รายงาน'
 ];
 
+const NUMERIC_CRUD_FIELDS = [
+  'OP visit','NCD visit','Non NCD visit','Bed rate','Active bed','Sum AdjRW','CMI',
+  'Sum AdjRWที่จ่าย','Fixed cost','LC(OT)','ยอดพิจารณาจ่าย IP','อัตราจ่าย/Adj.','หักเงินเดือน','คงเหลือรับ'
+];
+
 const numericCols = [
   'OP visit','NCD visit','Non NCD visit','Bed rate','Active bed',
   'Sum AdjRW','Sum AdjRWที่จ่าย','CMI','Fixed cost','LC(OT)',
@@ -143,10 +148,15 @@ function toast(text) {
 function apiGet(params={}) {
   return new Promise((resolve,reject)=>{
     const callback='__spd_cb_'+Date.now()+'_'+Math.random().toString(36).slice(2);
-    const query=new URLSearchParams({...params,callback});
+    const query=new URLSearchParams({...params,callback,_:Date.now()});
     const script=document.createElement('script');
-    const timer=setTimeout(()=>finish(new Error('Apps Script API ใช้เวลานานเกินไป')),20000);
+    script.async=true;
+    script.referrerPolicy='no-referrer';
     let done=false;
+
+    const timer=setTimeout(()=>finish(new Error(
+      'Apps Script API ไม่ตอบกลับภายใน 15 วินาที — ตรวจสอบ Web App ว่า “Who has access = Anyone” และ Deploy เวอร์ชันล่าสุด'
+    )),15000);
 
     function cleanup(){
       clearTimeout(timer);
@@ -155,12 +165,23 @@ function apiGet(params={}) {
     }
     function finish(err,data){
       if(done) return;
-      done=true; cleanup();
+      done=true;
+      cleanup();
       err ? reject(err) : resolve(data);
     }
 
     window[callback]=(data)=>finish(null,data);
-    script.onerror=()=>finish(new Error('ไม่สามารถเชื่อมต่อ Apps Script API ได้'));
+    script.onerror=()=>finish(new Error(
+      'เชื่อมต่อ Apps Script ไม่ได้ — ตรวจสอบ Web App URL และสิทธิ์ “Anyone”'
+    ));
+    script.onload=()=>{
+      // A valid JSONP response calls the callback before onload.
+      // If onload fires without the callback, Apps Script likely returned
+      // a login/HTML page instead of JavaScript.
+      if(!done) finish(new Error(
+        'Apps Script ตอบกลับแล้ว แต่ไม่ใช่ JSONP — กรุณาตั้ง Web App เป็น “Execute as: Me” และ “Who has access: Anyone”'
+      ));
+    };
     script.src=API_URL+'?'+query.toString();
     document.head.appendChild(script);
   });
@@ -332,23 +353,30 @@ function openModal(index=null) {
   bootstrap.Modal.getOrCreateInstance($('rowModal')).show();
 }
 
-function postApi(payload) {
-  return new Promise((resolve,reject)=>{
-    if(!API_URL) return reject(new Error('ยังไม่ได้ตั้งค่า Apps Script Web App URL'));
-    const frameName='appsScriptSubmitFrame';
-    let frame=document.getElementById(frameName);
-    if(!frame){
-      frame=document.createElement('iframe'); frame.id=frameName; frame.name=frameName; frame.style.display='none'; document.body.appendChild(frame);
-    }
-    const form=document.createElement('form'); form.method='POST'; form.action=API_URL; form.target=frameName; form.style.display='none';
-    const input=document.createElement('input'); input.type='hidden'; input.name='payload'; input.value=JSON.stringify(payload); form.appendChild(input); document.body.appendChild(form);
-    let finished=false;
-    const cleanup=()=>{try{form.remove()}catch(e){}};
-    const finishOk=()=>{if(finished)return;finished=true;cleanup();resolve({ok:true});};
-    frame.onload=finishOk;
-    setTimeout(finishOk,10000);
-    try{form.submit();}catch(err){if(!finished){finished=true;cleanup();reject(new Error('ไม่สามารถส่งข้อมูลไป Google Apps Script ได้'));}}
-  });
+async function postApi(payload) {
+  if(!API_URL) throw new Error('ยังไม่ได้ตั้งค่า Apps Script Web App URL');
+
+  // Apps Script Web App does not expose CORS headers. no-cors is intentional:
+  // the request is sent successfully, and the dashboard verifies the result
+  // by reading the sheet again through JSONP.
+  const body=new URLSearchParams({payload:JSON.stringify(payload)});
+  try {
+    await fetch(API_URL,{method:'POST',mode:'no-cors',body,cache:'no-store'});
+    return {ok:true};
+  } catch(err) {
+    throw new Error('ส่งข้อมูลไป Google Apps Script ไม่สำเร็จ: '+(err?.message||err));
+  }
+}
+
+async function waitForSheet(checkFn, timeoutMs=15000) {
+  const started=Date.now();
+  let lastRows=[];
+  while(Date.now()-started < timeoutMs){
+    lastRows=sortRows(await fetchSheetData());
+    if(checkFn(lastRows)) return lastRows;
+    await new Promise(r=>setTimeout(r,1000));
+  }
+  return lastRows;
 }
 
 async function saveRow() {
@@ -356,46 +384,74 @@ async function saveRow() {
   try {
     const values=Object.fromEntries([...document.querySelectorAll('#formGrid [data-field]')].map(x=>[x.dataset.field,x.value.trim()]));
     if(!values['เดือน']) throw new Error('กรุณาระบุเดือน');
+
     const action=editingIndex===null?'append':'update';
     const payload={action,values:crudCols.map(c=>values[c]||'')};
-    if(action==='update') payload.month=rows[editingIndex]['เดือน'];
-    btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm"></span> กำลังบันทึก...';
+    const oldMonth=action==='update'?String(rows[editingIndex]['เดือน']).trim():null;
+    const expectedMonth=String(values['เดือน']).trim();
+    if(action==='update') payload.month=oldMonth;
 
-    const oldMonth=action==='update'?rows[editingIndex]['เดือน']:null;
-    const expectedMonth=values['เดือน'];
+    btn.disabled=true;
+    btn.innerHTML='<span class="spinner-border spinner-border-sm"></span> กำลังบันทึก...';
     await postApi(payload);
     bootstrap.Modal.getInstance($('rowModal'))?.hide();
-    setStatus('บันทึกแล้ว กำลังตรวจสอบข้อมูลจากแผ่น1...');
+    setStatus('ส่งข้อมูลแล้ว กำลังตรวจสอบข้อมูลในแผ่น1...');
 
-    await new Promise(r=>setTimeout(r,1500));
-    const after=sortRows(await fetchSheetData());
+    const after=await waitForSheet((list)=>{
+      const found=list.find(r=>String(r['เดือน']).trim()===expectedMonth);
+      if(action==='append') return !!found;
+      if(!found) return false;
+      if(oldMonth!==expectedMonth && list.some(r=>String(r['เดือน']).trim()===oldMonth)) return false;
+      // Verify the fields that the form actually sent, including the corrected
+      // I=CMI and J=Sum AdjRWที่จ่าย positions.
+      return crudCols.every((c,i)=>{
+        if(c==='วันที่รายงาน') return true;
+        const sent=String(payload.values[i]??'').trim();
+        const got=String(found[c]??'').replace(/,/g,'').trim();
+        if(sent==='') return got==='';
+        const numericIndex=NUMERIC_CRUD_FIELDS.indexOf(c);
+        if(numericIndex>=0) return Number(got)===Number(sent.replace(/,/g,''));
+        return got===sent;
+      });
+    });
 
-    if(action==='append') {
-      const found=after.some(r=>String(r['เดือน']).trim()===String(expectedMonth).trim());
-      if(!found) throw new Error(`Apps Script รับคำสั่งแล้ว แต่ไม่พบเดือน ${expectedMonth} ในแผ่น1 (gid=0)`);
-    } else {
-      const foundNew=after.some(r=>String(r['เดือน']).trim()===String(expectedMonth).trim());
-      const oldStill=String(oldMonth).trim()!==String(expectedMonth).trim() && after.some(r=>String(r['เดือน']).trim()===String(oldMonth).trim());
-      if(!foundNew || oldStill) throw new Error('การแก้ไขยังไม่สะท้อนในแผ่น1 กรุณาตรวจสอบข้อมูล');
+    const found=after.find(r=>String(r['เดือน']).trim()===expectedMonth);
+    if(!found) throw new Error(`Apps Script รับคำสั่งแล้ว แต่ไม่พบเดือน ${expectedMonth} ในแผ่น1 (gid=0)`);
+    if(action==='update' && oldMonth!==expectedMonth && after.some(r=>String(r['เดือน']).trim()===oldMonth)) {
+      throw new Error('การแก้ไขยังไม่สะท้อนในแผ่น1: ยังพบเดือนเดิม');
     }
 
-    rows=after; initFilters(); render(); toast(action==='append'?'เพิ่มข้อมูลสำเร็จ':'แก้ไขข้อมูลสำเร็จ');
+    rows=after;
+    initFilters();
+    render();
+    toast(action==='append'?'เพิ่มข้อมูลสำเร็จ':'แก้ไขข้อมูลสำเร็จ');
+    setStatus(`เชื่อมต่อแล้ว • ${rows.length} รายการ • ${new Date().toLocaleTimeString('th-TH')}`);
   } catch(error) {
-    console.error(error); setStatus(error.message||'บันทึกไม่สำเร็จ','error'); alert(error.message||'บันทึกข้อมูลไม่สำเร็จ');
-  } finally { btn.disabled=false; btn.innerHTML='<i class="bi bi-save2"></i> บันทึกข้อมูล'; }
+    console.error(error);
+    setStatus(error.message||'บันทึกไม่สำเร็จ','error');
+    alert(error.message||'บันทึกข้อมูลไม่สำเร็จ');
+  } finally {
+    btn.disabled=false;
+    btn.innerHTML='<i class="bi bi-save2"></i> บันทึกข้อมูล';
+  }
 }
 
 async function deleteRow(index) {
   const row=rows[index]; if(!row)return;
-  const month=row['เดือน']; if(!confirm(`ยืนยันลบรายการ "${month}" ?`))return;
+  const month=String(row['เดือน']||'').trim();
+  if(!confirm(`ยืนยันลบรายการ "${month}" ?`))return;
   try {
     setStatus('กำลังลบข้อมูลจากแผ่น1...');
     await postApi({action:'delete',month});
-    await new Promise(r=>setTimeout(r,1500));
-    const after=sortRows(await fetchSheetData());
-    if(after.some(r=>String(r['เดือน']).trim()===String(month).trim())) throw new Error(`ลบแล้ว แต่ยังพบเดือน ${month} ในแผ่น1 (gid=0)`);
+    const after=await waitForSheet((list)=>!list.some(r=>String(r['เดือน']).trim()===month));
+    if(after.some(r=>String(r['เดือน']).trim()===month)) {
+      throw new Error(`Apps Script รับคำสั่งแล้ว แต่ยังพบเดือน ${month} ในแผ่น1 (gid=0)`);
+    }
     rows=after; initFilters(); render(); toast('ลบข้อมูลสำเร็จ');
-  } catch(error) { console.error(error); setStatus(error.message||'ลบข้อมูลไม่สำเร็จ','error'); alert(error.message||'ลบข้อมูลไม่สำเร็จ'); }
+    setStatus(`เชื่อมต่อแล้ว • ${rows.length} รายการ • ${new Date().toLocaleTimeString('th-TH')}`);
+  } catch(error) {
+    console.error(error); setStatus(error.message||'ลบข้อมูลไม่สำเร็จ','error'); alert(error.message||'ลบข้อมูลไม่สำเร็จ');
+  }
 }
 
 /* ---------- Navigation / Events ---------- */
