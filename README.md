@@ -1,27 +1,63 @@
 # Service Performance Dashboard
 
-เว็บแอป Dashboard สำหรับข้อมูลผลงานบริการ/การเงินจาก Google Sheet
+Dashboard สำหรับข้อมูลผลงานบริการและการเงิน โดยใช้ Google Sheet Published CSV เป็นแหล่งข้อมูลหลัก
 
 ## ฟังก์ชัน
-- ดึงข้อมูลจาก Published CSV ของ Google Sheet
-- แสดงข้อมูลครบ 17 คอลัมน์ของแผ่นงาน `แผ่น1`
-- ตัวกรอง ปี / เดือน / ค้นหาทุกคอลัมน์ / ตัวชี้วัด
-- KPI: OP visit, NCD visit, Non NCD visit, คงเหลือรับ, Bed rate, CMI
-- กราฟแนวโน้มและสัดส่วน OP/NCD/Non NCD
-- วิเคราะห์เปรียบเทียบรายปีและ % เปลี่ยนแปลงจากเดือน/ปีก่อน
-- ตารางข้อมูลทั้งหมดพร้อมแก้ไข/ลบ และเพิ่มข้อมูลผ่าน Apps Script Web App
-- รองรับมือถือ
+- 📊 KPI Dashboard
+- 📈 กราฟแนวโน้มรายเดือน
+- 📅 ปีงบประมาณ ต.ค. – ก.ย.
+- 🔎 Search ทุกคอลัมน์
+- 📋 ตารางข้อมูลครบ
+- 🏆 จัดอันดับผลงานสูงสุด/ต่ำสุด
+- ⚠️ รายการที่ควรติดตามจากข้อมูลที่ขาด/ค่าผิดปกติ
+- 📱 Responsive สำหรับมือถือ
+- 📟 Tablet
+- 💻 Desktop
+- 🔄 อ่านข้อมูลจาก Published CSV โดยตรง
+- ✏️ CRUD ผ่าน Google Apps Script API
+- 📈 วิเคราะห์เปรียบเทียบรายปีงบประมาณ
 
-## การติดตั้ง
-1. เปิด `index.html` ผ่านเว็บเซิร์ฟเวอร์ เช่น GitHub Pages, Netlify หรือ Vercel
-2. หากต้องการ CRUD ให้เปิด Google Apps Script ของไฟล์ Google Sheet เดียวกัน แล้วใส่ `Code.gs`
-3. Deploy > New deployment > Web app
-4. ตั้ง Execute as: Me และกำหนด Who has access ตามนโยบายของหน่วยงาน
-5. คัดลอก Web App URL ไปใส่ใน `app.js` ตัวแปร `API_URL`
-6. อัปโหลด/Deploy ไฟล์หน้าเว็บใหม่
+## ปีงบประมาณ
+ระบบคำนวณดังนี้:
+- ต.ค. 2568 → ปีงบประมาณ 2569
+- พ.ย. 2568 → ปีงบประมาณ 2569
+- ธ.ค. 2568 → ปีงบประมาณ 2569
+- ม.ค. 2569 – ก.ย. 2569 → ปีงบประมาณ 2569
 
-## หมายเหตุด้านความปลอดภัย
-- Published CSV เหมาะสำหรับอ่านข้อมูลแบบสาธารณะ/อ่านอย่างเดียว
-- CRUD ควรใช้ Apps Script Web App และกำหนดสิทธิ์การเข้าถึงให้เหมาะสม
-- ก่อนใช้จริงควรเพิ่ม authentication/authorization หากข้อมูลเป็นข้อมูลผู้ป่วยหรือข้อมูลอ่อนไหว
-- เวอร์ชันนี้ใช้เลขแถวสำหรับ update/delete จึงควรป้องกันการแก้ไขพร้อมกันหลายคน หากนำไปใช้เป็นระบบ production
+ลำดับเดือน:
+ต.ค. → พ.ย. → ธ.ค. → ม.ค. → ก.พ. → มี.ค. → เม.ย. → พ.ค. → มิ.ย. → ก.ค. → ส.ค. → ก.ย.
+
+## ไฟล์
+- index.html
+- styles.css
+- app.js
+- Code.gs
+
+## CRUD
+`app.js` ตั้งค่า Apps Script Web App URL ที่ deploy ไว้แล้ว
+และ `Code.gs` ใช้ชีต `กรอกข้อมูล`
+
+### Deploy Apps Script
+1. เปิด Apps Script
+2. วาง Code.gs
+3. Save
+4. Deploy → Manage deployments
+5. Edit Web app
+6. Execute as: Me
+7. ตั้งสิทธิ์ตามนโยบายของหน่วยงาน
+8. Deploy
+9. หากมีการแก้ Code.gs ให้ Deploy เวอร์ชันใหม่
+
+### GitHub Pages
+อัปโหลด 3 ไฟล์:
+- index.html
+- styles.css
+- app.js
+
+จากนั้นเปิด GitHub Pages
+
+## หมายเหตุ
+Published CSV ใช้สำหรับอ่านข้อมูล
+CRUD ใช้ Apps Script Web App แยกต่างหาก
+
+ก่อนใช้งานจริงกับข้อมูลอ่อนไหว ควรเพิ่ม authentication/authorization และกำหนดสิทธิ์การเขียนข้อมูลให้เหมาะสม
