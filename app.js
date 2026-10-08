@@ -22,7 +22,7 @@ const numericCols=[
 
 /* =========================================================
    เดือนตามปีงบประมาณ
-   ตุลาคม -> กันยายน
+   ต.ค. -> ก.ย.
    ========================================================= */
 
 const fyMonths=[
@@ -55,7 +55,7 @@ const monthShort={
   'ธันวาคม':'ธ.ค.'
 };
 
-/* รองรับข้อมูลใน Google Sheet ทั้งชื่อเต็มและชื่อย่อ */
+/* รองรับทั้งชื่อเดือนเต็มและชื่อเดือนย่อจาก Google Sheet */
 const monthAliases={
   'มกราคม':['มกราคม','ม.ค.','ม.ค'],
   'กุมภาพันธ์':['กุมภาพันธ์','ก.พ.','ก.พ'],
@@ -117,7 +117,7 @@ const integer=new Intl.NumberFormat('th-TH',{
 });
 
 /* =========================================================
-   CSV
+   CSV Parser
    ========================================================= */
 
 function parseCSV(text){
@@ -194,7 +194,7 @@ function parseRows(text){
 }
 
 /* =========================================================
-   เดือน
+   แปลงเดือน
    ========================================================= */
 
 function monthIndex(monthText){
@@ -210,7 +210,9 @@ function monthIndex(monthText){
 
     if(
       text.startsWith(fullName) ||
-      aliases.some(alias=>text.startsWith(alias))
+      aliases.some(
+        alias=>text.startsWith(alias)
+      )
     ){
       return i;
     }
@@ -220,51 +222,56 @@ function monthIndex(monthText){
 }
 
 /* =========================================================
-   ปีงบประมาณ
+   คำนวณปีงบประมาณ
    ========================================================= */
 
 function fiscalYear(row){
 
-  const text=String(row?.['เดือน']||'').trim();
+  const text=
+    String(row?.['เดือน']||'')
+      .trim();
 
   if(!text){
     return '';
   }
 
   /*
-    รองรับ
+    รองรับตัวอย่าง:
+    ต.ค.67
     ต.ค.68
     ต.ค.2568
     ต.ค.2025
   */
 
-  const match=text.match(/(\d{2,4})\s*$/);
+  const match=
+    text.match(/(\d{2,4})\s*$/);
 
   if(!match){
     return '';
   }
 
-  let year=Number(match[1]);
+  let year=
+    Number(match[1]);
 
-  /*
-    ถ้าเป็น ค.ศ.
-    2025 -> 2568
-  */
+  /* ค.ศ. -> พ.ศ. */
 
-  if(year>=1900 && year<2400){
-
+  if(
+    year>=1900 &&
+    year<2400
+  ){
     year+=543;
 
-  }else if(year<100){
+  }else if(
+    year<100
+  ){
 
-    /*
-      68 -> 2568
-    */
+    /* 68 -> 2568 */
 
     year+=2500;
   }
 
-  const mi=monthIndex(text);
+  const mi=
+    monthIndex(text);
 
   if(mi<0){
     return '';
@@ -272,7 +279,7 @@ function fiscalYear(row){
 
   /*
     ต.ค.-ธ.ค.
-    เป็นของปีงบประมาณถัดไป
+    เป็นปีงบประมาณถัดไป
   */
 
   if(mi<=2){
@@ -283,34 +290,41 @@ function fiscalYear(row){
 }
 
 /* =========================================================
-   เรียงข้อมูลตามปีงบประมาณ
+   เรียงข้อมูล
    ========================================================= */
 
 function sortRows(data){
 
   return [...data].sort((a,b)=>{
 
-    const fyA=Number(fiscalYear(a)||0);
-    const fyB=Number(fiscalYear(b)||0);
+    const fyA=
+      Number(fiscalYear(a)||0);
+
+    const fyB=
+      Number(fiscalYear(b)||0);
 
     if(fyA!==fyB){
       return fyA-fyB;
     }
 
-    const ma=monthIndex(a['เดือน']);
-    const mb=monthIndex(b['เดือน']);
+    const ma=
+      monthIndex(a['เดือน']);
+
+    const mb=
+      monthIndex(b['เดือน']);
 
     return ma-mb;
   });
 }
 
 /* =========================================================
-   แสดงเดือน
+   Label เดือน
    ========================================================= */
 
 function monthLabel(text){
 
-  const mi=monthIndex(text);
+  const mi=
+    monthIndex(text);
 
   const name=
     mi>=0
@@ -318,20 +332,26 @@ function monthLabel(text){
       :'';
 
   const year=
-    (String(text||'').match(/(\d{2,4})$/)||[])[1]
-    ||'';
+    (
+      String(text||'')
+        .match(/(\d{2,4})$/)
+      ||[]
+    )[1]||'';
 
-  return `${monthShort[name]||name} ${year.slice(-2)}`;
+  return `${
+    monthShort[name]||name
+  } ${year.slice(-2)}`;
 }
 
 /* =========================================================
-   คำนวณ
+   คำนวณตัวเลข
    ========================================================= */
 
 function sum(data,key){
 
   return data.reduce(
-    (s,r)=>s+(num(r[key])||0),
+    (s,r)=>
+      s+(num(r[key])||0),
     0
   );
 }
@@ -369,8 +389,9 @@ function formatValue(v,key){
     return '—';
   }
 
-  if(numericCols.includes(key)){
-
+  if(
+    numericCols.includes(key)
+  ){
     return money.format(
       num(v)||0
     );
@@ -383,13 +404,20 @@ function formatValue(v,key){
    Status
    ========================================================= */
 
-function setStatus(text,type='ok'){
+function setStatus(
+  text,
+  type='ok'
+){
 
   $('status').textContent=text;
 
   $('statusDot').className=
     'status-dot '+
-    (type==='error'?'error':'ok');
+    (
+      type==='error'
+        ?'error'
+        :'ok'
+    );
 }
 
 function toast(text){
@@ -399,13 +427,14 @@ function toast(text){
   $('toast').classList.add('show');
 
   setTimeout(
-    ()=>$('toast').classList.remove('show'),
+    ()=>
+      $('toast').classList.remove('show'),
     2600
   );
 }
 
 /* =========================================================
-   โหลดข้อมูล
+   Load
    ========================================================= */
 
 async function load(){
@@ -419,7 +448,9 @@ async function load(){
     const response=
       await fetch(
         CSV_URL,
-        {cache:'no-store'}
+        {
+          cache:'no-store'
+        }
       );
 
     if(!response.ok){
@@ -429,11 +460,13 @@ async function load(){
       );
     }
 
-    rows=sortRows(
-      parseRows(
-        await response.text()
-      )
-    );
+    const text=
+      await response.text();
+
+    rows=
+      sortRows(
+        parseRows(text)
+      );
 
     initFilters();
 
@@ -448,7 +481,7 @@ async function load(){
     console.error(error);
 
     setStatus(
-      error.message ||
+      error.message||
       'โหลดข้อมูลไม่สำเร็จ',
       'error'
     );
@@ -456,7 +489,7 @@ async function load(){
 }
 
 /* =========================================================
-   Filter
+   สร้างตัวกรอง
    ========================================================= */
 
 function initFilters(){
@@ -469,23 +502,31 @@ function initFilters(){
     )
   ]
   .sort(
-    (a,b)=>Number(a)-Number(b)
+    (a,b)=>
+      Number(a)-Number(b)
   );
 
   $('yearFilter').innerHTML=
     '<option value="all">ทุกปีงบประมาณ</option>'+
     years
-      .map(y=>
-        `<option value="${y}">
-          ปีงบประมาณ ${y}
-        </option>`
+      .map(
+        y=>
+          `<option value="${y}">
+            ปีงบประมาณ ${y}
+          </option>`
       )
       .join('');
 
   /*
-    สำคัญ:
-    value ของเดือนใช้ index 0-11
-    เพื่อให้เลือกเดือนย่อ/เต็มได้ถูกต้อง
+    สำคัญมาก:
+    value ของเดือนเป็นตัวเลข 0-11
+
+    0 = ตุลาคม
+    1 = พฤศจิกายน
+    2 = ธันวาคม
+    3 = มกราคม
+    ...
+    11 = กันยายน
   */
 
   $('monthFilter').innerHTML=
@@ -519,7 +560,7 @@ function initFilters(){
 }
 
 /* =========================================================
-   กรองข้อมูล
+   FILTER DATA
    ========================================================= */
 
 function filtered(){
@@ -543,14 +584,23 @@ function filtered(){
         fiscalYear(r)===y;
 
       /*
-        จุดสำคัญที่แก้:
-        ใช้ monthIndex แทน startsWith
-        เพราะ Google Sheet ใช้ ต.ค.68
+        สำคัญมาก:
+        ไม่ใช้ startsWith กับชื่อเดือนแล้ว
+
+        เพราะข้อมูลจริงใน Sheet เช่น:
+        ต.ค.68
+        พ.ย.68
+        ธ.ค.68
+
+        monthIndex() จะเปลี่ยนเป็น
+        0, 1, 2 ... 11
       */
 
       const okMonth=
         m==='all' ||
-        monthIndex(r['เดือน'])===Number(m);
+        monthIndex(
+          r['เดือน']
+        )===Number(m);
 
       const okSearch=
         !q ||
@@ -570,12 +620,13 @@ function filtered(){
 }
 
 /* =========================================================
-   Render
+   Render ทั้งหมด
    ========================================================= */
 
 function render(){
 
-  const data=filtered();
+  const data=
+    filtered();
 
   $('count').textContent=
     `${data.length} รายการ`;
@@ -651,74 +702,75 @@ function renderKPI(data){
   ];
 
   $('kpis').innerHTML=
-    cards.map(
-      ([key,value,unit,icon],i)=>{
+    cards
+      .map(
+        ([key,value,unit,icon],i)=>{
 
-        const latestValue=
-          num(latest?.[key]);
+          const latestValue=
+            num(latest?.[key]);
 
-        const previousValue=
-          num(previous?.[key]);
+          const previousValue=
+            num(previous?.[key]);
 
-        const change=
-          pct(
-            latestValue,
-            previousValue
-          );
+          const change=
+            pct(
+              latestValue,
+              previousValue
+            );
 
-        const cls=
-          change===null
-            ?'flat'
-            :change>0
-              ?'up'
+          const cls=
+            change===null
+              ?'flat'
+              :change>0
+                ?'up'
+                :change<0
+                  ?'down'
+                  :'flat';
+
+          const arrow=
+            change>0
+              ?'▲'
               :change<0
-                ?'down'
-                :'flat';
+                ?'▼'
+                :'—';
 
-        const arrow=
-          change>0
-            ?'▲'
-            :change<0
-              ?'▼'
-              :'—';
+          return `
+            <article
+              class="kpi-card"
+              style="--accent:${accents[i]}"
+            >
 
-        return `
-        <article
-          class="kpi-card"
-          style="--accent:${accents[i]}"
-        >
+              <div class="kpi-icon">
+                <i class="bi bi-${icon}"></i>
+              </div>
 
-          <div class="kpi-icon">
-            <i class="bi bi-${icon}"></i>
-          </div>
+              <div class="kpi-label">
+                ${key}
+              </div>
 
-          <div class="kpi-label">
-            ${key}
-          </div>
+              <div class="kpi-value">
+                ${money.format(value)}
+              </div>
 
-          <div class="kpi-value">
-            ${money.format(value)}
-          </div>
+              <div class="kpi-unit">
+                ${unit}
+              </div>
 
-          <div class="kpi-unit">
-            ${unit}
-          </div>
+              <div class="kpi-change ${cls}">
 
-          <div class="kpi-change ${cls}">
+                ${
+                  change===null
+                    ?'ไม่มีฐานเปรียบเทียบ'
+                    :`${arrow} ${Math.abs(change).toFixed(1)}% จากเดือนก่อน`
+                }
 
-            ${
-              change===null
-              ?'ไม่มีฐานเปรียบเทียบ'
-              :`${arrow} ${Math.abs(change).toFixed(1)}% จากเดือนก่อน`
-            }
+              </div>
 
-          </div>
-
-        </article>
-        `;
-      }
-    )
-    .join('');
+            </article>
+          `;
+        }
+      )
+      .join('');
 }
 
 /* =========================================================
@@ -729,7 +781,9 @@ function renderCharts(data){
 
   const labels=
     data.map(
-      r=>monthLabel(r['เดือน'])
+      r=>monthLabel(
+        r['เดือน']
+      )
     );
 
   const metric=
@@ -791,6 +845,7 @@ function renderCharts(data){
 
             legend:{
               display:true,
+
               labels:{
                 font:{
                   family:'Prompt',
@@ -941,32 +996,39 @@ function renderRank(data){
       .map(
         (r,i)=>`
 
-        <div class="rank-row">
+          <div class="rank-row">
 
-          <span class="rank-no">
-            ${i+1}
-          </span>
+            <span class="rank-no">
+              ${i+1}
+            </span>
 
-          <span class="rank-month">
-            ${monthLabel(r['เดือน'])}
-          </span>
+            <span class="rank-month">
+              ${monthLabel(
+                r['เดือน']
+              )}
+            </span>
 
-          <span class="rank-value">
-            ${money.format(r._value)}
-          </span>
+            <span class="rank-value">
+              ${money.format(
+                r._value
+              )}
+            </span>
 
-        </div>
+          </div>
 
         `
       )
-      .join('') ||
+      .join('')
+      ||
       '<div class="small-note">ไม่มีข้อมูล</div>';
 
   $('topTable').innerHTML=
     make(scored);
 
   $('bottomTable').innerHTML=
-    make([...scored].reverse());
+    make(
+      [...scored].reverse()
+    );
 }
 
 /* =========================================================
@@ -990,10 +1052,14 @@ function renderWatchList(data){
     if(missing.length){
 
       items.push({
-        icon:'exclamation-triangle-fill',
+
+        icon:
+          'exclamation-triangle-fill',
 
         title:
-          monthLabel(r['เดือน']),
+          monthLabel(
+            r['เดือน']
+          ),
 
         detail:
           `ข้อมูลยังไม่ครบ: ${missing.slice(0,3).join(', ')}${
@@ -1007,7 +1073,9 @@ function renderWatchList(data){
     }
 
     const remain=
-      num(r['คงเหลือรับ']);
+      num(
+        r['คงเหลือรับ']
+      );
 
     if(
       remain!==null &&
@@ -1019,7 +1087,9 @@ function renderWatchList(data){
         icon:'cash-coin',
 
         title:
-          monthLabel(r['เดือน']),
+          monthLabel(
+            r['เดือน']
+          ),
 
         detail:
           'คงเหลือรับติดลบ ควรตรวจสอบข้อมูลการเงิน'
@@ -1029,7 +1099,9 @@ function renderWatchList(data){
     }
 
     const bed=
-      num(r['Bed rate']);
+      num(
+        r['Bed rate']
+      );
 
     if(
       bed!==null &&
@@ -1038,13 +1110,18 @@ function renderWatchList(data){
 
       items.push({
 
-        icon:'hospital-fill',
+        icon:
+          'hospital-fill',
 
         title:
-          monthLabel(r['เดือน']),
+          monthLabel(
+            r['เดือน']
+          ),
 
         detail:
-          `Bed rate ${money.format(bed)}% ควรติดตาม`
+          `Bed rate ${money.format(
+            bed
+          )}% ควรติดตาม`
       });
     }
   });
@@ -1068,25 +1145,25 @@ function renderWatchList(data){
         .map(
           x=>`
 
-          <div class="watch-item">
+            <div class="watch-item">
 
-            <div class="watch-icon">
-              <i class="bi bi-${x.icon}"></i>
-            </div>
-
-            <div>
-
-              <div class="watch-title">
-                ${x.title}
+              <div class="watch-icon">
+                <i class="bi bi-${x.icon}"></i>
               </div>
 
-              <div class="watch-detail">
-                ${x.detail}
+              <div>
+
+                <div class="watch-title">
+                  ${x.title}
+                </div>
+
+                <div class="watch-detail">
+                  ${x.detail}
+                </div>
+
               </div>
 
             </div>
-
-          </div>
 
           `
         )
@@ -1113,14 +1190,18 @@ function renderAnalysis(data){
       )
     ]
     .sort(
-      (a,b)=>Number(a)-Number(b)
+      (a,b)=>
+        Number(a)-Number(b)
     );
 
   let prev=null;
 
   let html=`
+
     <thead>
+
       <tr>
+
         <th>ปีงบฯ</th>
         <th>เดือน</th>
         <th>OP visit</th>
@@ -1130,7 +1211,9 @@ function renderAnalysis(data){
         <th>Bed rate</th>
         <th>CMI</th>
         <th>${metric} %</th>
+
       </tr>
+
     </thead>
 
     <tbody>
@@ -1144,7 +1227,10 @@ function renderAnalysis(data){
       );
 
     const value=
-      sum(yd,metric);
+      sum(
+        yd,
+        metric
+      );
 
     const change=
       pct(
@@ -1168,37 +1254,55 @@ function renderAnalysis(data){
 
         <td>
           ${integer.format(
-            sum(yd,'OP visit')
+            sum(
+              yd,
+              'OP visit'
+            )
           )}
         </td>
 
         <td>
           ${integer.format(
-            sum(yd,'NCD visit')
+            sum(
+              yd,
+              'NCD visit'
+            )
           )}
         </td>
 
         <td>
           ${integer.format(
-            sum(yd,'Non NCD visit')
+            sum(
+              yd,
+              'Non NCD visit'
+            )
           )}
         </td>
 
         <td>
           ${money.format(
-            sum(yd,'คงเหลือรับ')
+            sum(
+              yd,
+              'คงเหลือรับ'
+            )
           )}
         </td>
 
         <td>
           ${money.format(
-            avg(yd,'Bed rate')
+            avg(
+              yd,
+              'Bed rate'
+            )
           )}%
         </td>
 
         <td>
           ${money.format(
-            avg(yd,'CMI')
+            avg(
+              yd,
+              'CMI'
+            )
           )}
         </td>
 
@@ -1213,8 +1317,7 @@ function renderAnalysis(data){
           ${
             change===null
               ?'—'
-              :`${change>0?'▲':change<0?'▼':'—'}
-                ${Math.abs(change).toFixed(1)}%`
+              :`${change>0?'▲':change<0?'▼':'—'} ${Math.abs(change).toFixed(1)}%`
           }
 
         </td>
@@ -1226,7 +1329,9 @@ function renderAnalysis(data){
     prev=value;
   });
 
-  html+='</tbody>';
+  html+=`
+    </tbody>
+  `;
 
   $('yearTable').innerHTML=
     html;
@@ -1255,7 +1360,9 @@ function renderAnalysis(data){
     [
       'เดือนล่าสุด',
       latest
-        ?monthLabel(latest['เดือน'])
+        ?monthLabel(
+          latest['เดือน']
+        )
         :'—'
     ],
 
@@ -1263,7 +1370,9 @@ function renderAnalysis(data){
       'ค่าเดือนล่าสุด',
       latest
         ?money.format(
-          num(latest[metric])||0
+          num(
+            latest[metric]
+          )||0
         )
         :'—'
     ],
@@ -1308,7 +1417,10 @@ function renderAnalysis(data){
 
           labels:
             data.map(
-              r=>monthLabel(r['เดือน'])
+              r=>
+                monthLabel(
+                  r['เดือน']
+                )
             ),
 
           datasets:[
@@ -1323,7 +1435,9 @@ function renderAnalysis(data){
                     i
                       ?pct(
                         num(r[metric]),
-                        num(data[i-1][metric])
+                        num(
+                          data[i-1][metric]
+                        )
                       )||0
                       :0
                 ),
@@ -1336,7 +1450,9 @@ function renderAnalysis(data){
                       i
                         ?pct(
                           num(r[metric]),
-                          num(data[i-1][metric])
+                          num(
+                            data[i-1][metric]
+                          )
                         )||0
                         :0;
 
@@ -1354,6 +1470,7 @@ function renderAnalysis(data){
         options:{
 
           responsive:true,
+
           maintainAspectRatio:false,
 
           plugins:{
@@ -1411,7 +1528,10 @@ function renderAnalysis(data){
 
           labels:
             data.map(
-              r=>monthLabel(r['เดือน'])
+              r=>
+                monthLabel(
+                  r['เดือน']
+                )
             ),
 
           datasets:[
@@ -1421,10 +1541,14 @@ function renderAnalysis(data){
 
               data:
                 data.map(
-                  r=>num(r[metric])||0
+                  r=>
+                    num(
+                      r[metric]
+                    )||0
                 ),
 
-              borderColor:'#6842d8',
+              borderColor:
+                '#6842d8',
 
               backgroundColor:
                 'rgba(104,66,216,.09)',
@@ -1441,6 +1565,7 @@ function renderAnalysis(data){
         options:{
 
           responsive:true,
+
           maintainAspectRatio:false,
 
           plugins:{
@@ -1505,7 +1630,7 @@ function escapeHtml(v){
 }
 
 /* =========================================================
-   ตารางข้อมูล
+   ตาราง
    ========================================================= */
 
 function renderTable(data){
@@ -1530,12 +1655,16 @@ function renderTable(data){
             .map(
               c=>
                 `<td>${escapeHtml(
-                  formatValue(r[c],c)
+                  formatValue(
+                    r[c],
+                    c
+                  )
                 )}</td>`
             )
             .join('');
 
         return `
+
           <tr>
 
             ${cells}
@@ -1561,6 +1690,7 @@ function renderTable(data){
             </td>
 
           </tr>
+
         `;
       })
       .join('');
@@ -1599,18 +1729,20 @@ function buildForm(row={}){
       .map(
         c=>`
 
-        <div class="form-field">
+          <div class="form-field">
 
-          <label>
-            ${escapeHtml(c)}
-          </label>
+            <label>
+              ${escapeHtml(c)}
+            </label>
 
-          <input
-            data-field="${escapeHtml(c)}"
-            value="${escapeHtml(row[c]??'')}"
-          >
+            <input
+              data-field="${escapeHtml(c)}"
+              value="${escapeHtml(
+                row[c]??''
+              )}"
+            >
 
-        </div>
+          </div>
 
         `
       )
@@ -1640,7 +1772,7 @@ function openModal(index=null){
 }
 
 /* =========================================================
-   Google Apps Script
+   Apps Script API
    ========================================================= */
 
 function postApi(payload){
@@ -1700,8 +1832,11 @@ function postApi(payload){
 
       input.type='hidden';
       input.name='payload';
+
       input.value=
-        JSON.stringify(payload);
+        JSON.stringify(
+          payload
+        );
 
       form.appendChild(input);
 
@@ -1712,14 +1847,19 @@ function postApi(payload){
       let finished=false;
 
       const cleanup=()=>{
+
         try{
           form.remove();
         }catch(e){}
+
       };
 
       setTimeout(
         ()=>{
-          if(finished)return;
+
+          if(finished){
+            return;
+          }
 
           finished=true;
 
@@ -1728,6 +1868,7 @@ function postApi(payload){
           resolve({
             ok:true
           });
+
         },
         2500
       );
@@ -1756,7 +1897,7 @@ function postApi(payload){
 }
 
 /* =========================================================
-   บันทึกข้อมูล
+   Save
    ========================================================= */
 
 async function saveRow(){
@@ -1768,11 +1909,13 @@ async function saveRow(){
 
     const values=
       Object.fromEntries(
+
         [
           ...document.querySelectorAll(
             '#formGrid [data-field]'
           )
         ]
+
         .map(
           x=>[
             x.dataset.field,
@@ -1806,7 +1949,9 @@ async function saveRow(){
     if(action==='update'){
 
       payload.month=
-        rows[editingIndex]['เดือน'];
+        rows[
+          editingIndex
+        ]['เดือน'];
     }
 
     btn.disabled=true;
@@ -1829,7 +1974,10 @@ async function saveRow(){
     );
 
     await new Promise(
-      r=>setTimeout(r,4500)
+      r=>setTimeout(
+        r,
+        4500
+      )
     );
 
     await load();
@@ -1865,14 +2013,17 @@ async function saveRow(){
 }
 
 /* =========================================================
-   ลบข้อมูล
+   Delete
    ========================================================= */
 
 async function deleteRow(index){
 
-  const row=rows[index];
+  const row=
+    rows[index];
 
-  if(!row)return;
+  if(!row){
+    return;
+  }
 
   const month=
     row['เดือน'];
@@ -1892,12 +2043,17 @@ async function deleteRow(index){
     );
 
     await postApi({
+
       action:'delete',
+
       month
     });
 
     await new Promise(
-      r=>setTimeout(r,4500)
+      r=>setTimeout(
+        r,
+        4500
+      )
     );
 
     await load();
@@ -1924,13 +2080,15 @@ async function deleteRow(index){
 }
 
 /* =========================================================
-   เปลี่ยนหน้า
+   Switch View
    ========================================================= */
 
 function switchView(view){
 
   document
-    .querySelectorAll('.nav-tab')
+    .querySelectorAll(
+      '.nav-tab'
+    )
     .forEach(
       btn=>{
         btn.classList.toggle(
@@ -1962,15 +2120,21 @@ function switchView(view){
    ========================================================= */
 
 document
-  .querySelectorAll('.nav-tab')
+  .querySelectorAll(
+    '.nav-tab'
+  )
   .forEach(
     btn=>{
+
       btn.addEventListener(
         'click',
-        ()=>switchView(
-          btn.dataset.view
-        )
+        ()=>{
+          switchView(
+            btn.dataset.view
+          );
+        }
       );
+
     }
   );
 
@@ -1992,6 +2156,7 @@ document
       'change',
       render
     );
+
   }
 );
 
@@ -2006,11 +2171,14 @@ $('reset')
     'click',
     ()=>{
 
-      $('yearFilter').value='all';
+      $('yearFilter').value=
+        'all';
 
-      $('monthFilter').value='all';
+      $('monthFilter').value=
+        'all';
 
-      $('search').value='';
+      $('search').value=
+        '';
 
       $('metricFilter').value=
         'OP visit';
@@ -2022,7 +2190,9 @@ $('reset')
 $('addBtn')
   .addEventListener(
     'click',
-    ()=>openModal()
+    ()=>{
+      openModal();
+    }
   );
 
 $('saveBtn')
@@ -2038,7 +2208,7 @@ window.deleteRow=
   deleteRow;
 
 /* =========================================================
-   เริ่มต้นระบบ
+   Start
    ========================================================= */
 
 load();
