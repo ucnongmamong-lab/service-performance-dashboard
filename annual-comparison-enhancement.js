@@ -255,7 +255,17 @@
     const originalSwitchView = switchView;
     switchView = function (view) {
       originalSwitchView(view);
-      if (view === 'annual') renderAnnualComparison();
+
+      // The original navigation only toggles the three built-in views.
+      // Explicitly toggle every view so the injected annual view can appear.
+      document.querySelectorAll('.view-section').forEach(section => {
+        section.classList.toggle('d-none', section.id !== 'view-' + view);
+      });
+
+      if (view === 'annual') {
+        // Chart.js needs a visible canvas to calculate responsive dimensions.
+        requestAnimationFrame(() => renderAnnualComparison());
+      }
     };
 
     const originalRender = render;
