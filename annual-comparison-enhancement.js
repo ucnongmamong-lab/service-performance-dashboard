@@ -25,6 +25,8 @@
     style.id = 'annual-comparison-enhancement-styles';
     style.textContent = `
       .annual-filter-panel{padding:18px 20px}
+      /* The main dashboard filter card is shared by the original views; hide it only on annual comparison. */
+      body.annual-view-active .filter-card{display:none!important}
       .annual-filter-grid{display:grid;grid-template-columns:minmax(260px,520px);gap:13px}
       .annual-hint{margin:12px 0 0;color:var(--muted,#687386);font-size:.73rem}
       .annual-hint i{color:var(--primary,#0f5bd7);margin-right:4px}
@@ -264,6 +266,7 @@
       document.querySelectorAll('.view-section').forEach(section => {
         section.classList.toggle('d-none', section.id !== 'view-' + view);
       });
+      document.body.classList.toggle('annual-view-active', view === 'annual');
 
       if (view === 'annual') {
         // Chart.js needs a visible canvas to calculate responsive dimensions.
