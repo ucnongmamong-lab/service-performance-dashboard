@@ -1,10 +1,10 @@
 /*
  * Service Performance Dashboard enhancements
- * 1) Adds a dedicated annual KPI comparison view using the same fiscal-month
- *    period for every fiscal year.
+ * 1) Adds a dedicated annual KPI comparison view with monthly line series
+ *    for every fiscal year (October–September).
  * 2) Shows percentage labels directly on the service-share doughnut chart.
  *
- * Install: upload this file to the repository root and include it BEFORE app.js:
+ * Install: upload this file to the repository root and include it AFTER app.js:
  * <script src="annual-comparison-enhancement.js"></script>
  */
 
@@ -25,7 +25,7 @@
     style.id = 'annual-comparison-enhancement-styles';
     style.textContent = `
       .annual-filter-panel{padding:18px 20px}
-      .annual-filter-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:13px}
+      .annual-filter-grid{display:grid;grid-template-columns:minmax(260px,520px);gap:13px}
       .annual-hint{margin:12px 0 0;color:var(--muted,#687386);font-size:.73rem}
       .annual-hint i{color:var(--primary,#0f5bd7);margin-right:4px}
       .annual-table-note{font-size:.72rem;color:var(--muted,#687386)}
@@ -56,6 +56,7 @@
     button.className = 'nav-tab';
     button.dataset.view = 'annual';
     button.innerHTML = '<i class="bi bi-calendar2-range"></i><span>เปรียบเทียบรายปี</span>';
+    button.addEventListener('click', function () { switchView('annual'); });
     nav.insertBefore(button, nav.querySelector('[data-view="data"]'));
 
     const section = document.createElement('section');
@@ -70,28 +71,20 @@
         </div>
       </div>
       <article class="panel annual-filter-panel mb-4">
-        <div class="annual-filter-grid">
+        <div class="annual-filter-grid annual-filter-grid-single">
           <div class="filter-item">
             <label for="annualMetric"><i class="bi bi-speedometer2"></i> KPI ที่ต้องการเปรียบเทียบ</label>
             <select id="annualMetric"></select>
           </div>
-          <div class="filter-item">
-            <label for="annualStartMonth"><i class="bi bi-calendar-month"></i> เดือนเริ่มต้น</label>
-            <select id="annualStartMonth"></select>
-          </div>
-          <div class="filter-item">
-            <label for="annualEndMonth"><i class="bi bi-calendar-month"></i> เดือนสิ้นสุด</label>
-            <select id="annualEndMonth"></select>
-          </div>
         </div>
-        <p class="annual-hint"><i class="bi bi-info-circle"></i> เลือกช่วงเดือน เช่น ต.ค.–มี.ค. ระบบจะรวม/เฉลี่ย KPI จากช่วงเดียวกันของทุกปีงบประมาณ และแสดงร้อยละการเปลี่ยนแปลงเทียบปีก่อน</p>
+        <p class="annual-hint"><i class="bi bi-info-circle"></i> กราฟแสดงข้อมูลรายเดือนตั้งแต่ ต.ค.–ก.ย. โดยแต่ละเส้นแทนปีงบประมาณ เพื่อเปรียบเทียบเดือนเดียวกันระหว่างปี</p>
       </article>
       <div id="annualCards" class="analysis-kpi-grid"></div>
       <article class="panel mb-4">
         <div class="panel-header">
           <div>
-            <h3><i class="bi bi-bar-chart-fill"></i> เปรียบเทียบ KPI ตามปีงบประมาณ</h3>
-            <p>ยอดรวมใช้ผลรวมตามช่วงเดือน ส่วน Bed rate, Active bed, CMI และอัตราจ่าย/Adj. ใช้ค่าเฉลี่ย</p>
+            <h3><i class="bi bi-graph-up"></i> แนวโน้ม KPI รายเดือน เปรียบเทียบแต่ละปีงบประมาณ</h3>
+            <p>แกนนอน: เดือน ต.ค.–ก.ย. • เส้นแต่ละสี: ปีงบประมาณ • เลือก KPI เพื่อเปลี่ยนกราฟ</p>
           </div>
         </div>
         <div class="chart-wrap chart-main"><canvas id="annualChart"></canvas></div>
@@ -99,8 +92,8 @@
       <article class="panel mb-4">
         <div class="panel-header">
           <div>
-            <h3><i class="bi bi-table"></i> ตารางเปรียบเทียบรายปี</h3>
-            <p>แสดงค่า KPI, จำนวนเดือนที่มีข้อมูล และ % เปลี่ยนแปลงจากปีก่อน</p>
+            <h3><i class="bi bi-table"></i> สรุป KPI รายปี</h3>
+            <p>สรุปทั้งปีงบประมาณ เพื่อประกอบการอ่านแนวโน้มรายเดือนในกราฟ</p>
           </div>
         </div>
         <div class="table-scroll"><table class="data-table compact-table" id="annualTable"></table></div>
@@ -108,31 +101,11 @@
     `;
     dataView.parentNode.insertBefore(section, dataView);
 
-    const months = fyMonths.map((name, index) =>
-      `<option value="${index}">${monthShort[name]}</option>`
-    ).join('');
     document.getElementById('annualMetric').innerHTML = annualMetrics.map(key =>
       `<option value="${escapeHtml(key)}">${escapeHtml(key)}</option>`
     ).join('');
-    document.getElementById('annualStartMonth').innerHTML = months;
-    document.getElementById('annualEndMonth').innerHTML = months;
     document.getElementById('annualMetric').value = 'OP visit';
-    document.getElementById('annualStartMonth').value = '0';
-    document.getElementById('annualEndMonth').value = '11';
-
     document.getElementById('annualMetric').addEventListener('change', renderAnnualComparison);
-    document.getElementById('annualStartMonth').addEventListener('change', function () {
-      const start = Number(this.value);
-      const end = document.getElementById('annualEndMonth');
-      if (Number(end.value) < start) end.value = this.value;
-      renderAnnualComparison();
-    });
-    document.getElementById('annualEndMonth').addEventListener('change', function () {
-      const end = Number(this.value);
-      const start = document.getElementById('annualStartMonth');
-      if (end < Number(start.value)) start.value = this.value;
-      renderAnnualComparison();
-    });
   }
 
   function installDoughnutPercentLabels() {
@@ -180,23 +153,19 @@
 
   function renderAnnualComparison() {
     const tableElement = document.getElementById('annualTable');
-    if (!tableElement || typeof rows === 'undefined' || !Array.isArray(rows)) return;
+    const chartElement = document.getElementById('annualChart');
+    if (!tableElement || !chartElement || typeof rows === 'undefined' || !Array.isArray(rows)) return;
 
     const metric = document.getElementById('annualMetric').value || 'OP visit';
-    const start = Number(document.getElementById('annualStartMonth').value || 0);
-    const end = Number(document.getElementById('annualEndMonth').value || 11);
-    const period = periodLabel(start, end);
-    const expectedMonths = end - start + 1;
     const years = [...new Set(rows.map(fiscalYear).filter(Boolean))]
       .sort((a, b) => Number(a) - Number(b));
+    const isPercent = metric === 'Bed rate' || metric === 'อัตราจ่าย/Adj.';
+    const showValue = value => value === null || value === undefined || !Number.isFinite(Number(value))
+      ? '—' : `${money.format(Number(value))}${isPercent ? '%' : ''}`;
 
     const groups = years.map(year => {
-      const selected = sortRows(rows.filter(row =>
-        fiscalYear(row) === year &&
-        monthIndex(row['เดือน']) >= start &&
-        monthIndex(row['เดือน']) <= end
-      ));
-      return { year, rows: selected, value: aggregateMetric(selected, metric) };
+      const yearRows = sortRows(rows.filter(row => fiscalYear(row) === year));
+      return { year, rows: yearRows, value: aggregateMetric(yearRows, metric) };
     });
 
     const priorFor = index => groups.slice(0, index).reverse().find(group => group.rows.length);
@@ -204,21 +173,18 @@
     const lastIndex = lastGroup ? groups.indexOf(lastGroup) : -1;
     const lastPrior = lastIndex > 0 ? priorFor(lastIndex) : null;
     const lastChange = lastGroup && lastPrior ? pct(lastGroup.value, lastPrior.value) : null;
-    const isPercent = metric === 'Bed rate' || metric === 'อัตราจ่าย/Adj.';
-    const showValue = value => value === null || value === undefined ? '—' :
-      `${money.format(value)}${isPercent ? '%' : ''}`;
 
     document.getElementById('annualCards').innerHTML = [
       ['KPI ที่เลือก', metric],
-      ['ช่วงเดือนที่เปรียบเทียบ', period],
+      ['รูปแบบกราฟ', 'รายเดือน ต.ค.–ก.ย.'],
       ['ปีงบประมาณที่มีข้อมูล', String(groups.filter(group => group.rows.length).length)],
-      ['เปลี่ยนแปลงจากปีก่อน', lastChange === null ? '—' :
+      ['เปลี่ยนแปลงทั้งปีจากปีก่อน', lastChange === null ? '—' :
         `${lastChange > 0 ? '▲ ' : lastChange < 0 ? '▼ ' : ''}${Math.abs(lastChange).toFixed(1)}%`]
     ].map(([label, value]) =>
       `<div class="analysis-card"><div class="label">${escapeHtml(label)}</div><div class="value">${escapeHtml(value)}</div></div>`
     ).join('');
 
-    let table = `<thead><tr><th>ปีงบประมาณ</th><th>ช่วงเวลา</th><th>จำนวนเดือนที่มีข้อมูล</th><th>${escapeHtml(metric)}</th><th>ค่าเทียบปีก่อน</th><th>% เปลี่ยนแปลงจากปีก่อน</th></tr></thead><tbody>`;
+    let table = `<thead><tr><th>ปีงบประมาณ</th><th>จำนวนเดือนที่มีข้อมูล</th><th>${escapeHtml(metric)} (ทั้งปี)</th><th>ค่าเทียบปีก่อน</th><th>% เปลี่ยนแปลงจากปีก่อน</th></tr></thead><tbody>`;
     groups.forEach((group, index) => {
       const prior = priorFor(index);
       const change = prior && group.rows.length ? pct(group.value, prior.value) : null;
@@ -226,8 +192,7 @@
         change > 0 ? 'annual-change-up' : change < 0 ? 'annual-change-down' : 'annual-change-flat';
       table += `<tr>
         <td><span class="badge text-bg-primary">FY ${escapeHtml(group.year)}</span></td>
-        <td>${escapeHtml(period)}</td>
-        <td>${group.rows.length}/${expectedMonths}</td>
+        <td>${group.rows.length}/12</td>
         <td>${showValue(group.value)}</td>
         <td>${prior ? showValue(prior.value) : '—'}</td>
         <td class="${changeClass}">${change === null ? '—' : `${change > 0 ? '▲ ' : change < 0 ? '▼ ' : ''}${Math.abs(change).toFixed(1)}%`}</td>
@@ -236,30 +201,51 @@
     tableElement.innerHTML = table + '</tbody>';
 
     if (annualChart) annualChart.destroy();
-    annualChart = new Chart(document.getElementById('annualChart'), {
-      type: 'bar',
-      data: {
-        labels: groups.map(group => `FY ${group.year}`),
-        datasets: [{
-          label: metric,
-          data: groups.map(group => group.value),
-          backgroundColor: groups.map((group, index) => index === groups.length - 1 ? '#0ca678' : '#0f5bd7'),
-          borderRadius: 7,
-          maxBarThickness: 54
-        }]
-      },
+    const colors = ['#0f5bd7', '#0ca678', '#6842d8', '#f59f00', '#e03131', '#1098ad', '#d63384', '#495057'];
+    const monthLabels = fyMonths.map(month => monthShort[month]);
+    const datasets = groups.map((group, index) => {
+      const valuesByMonth = Array(12).fill(null);
+      group.rows.forEach(row => {
+        const indexInYear = monthIndex(row['เดือน']);
+        if (indexInYear >= 0 && indexInYear < 12) {
+          const value = num(row[metric]);
+          valuesByMonth[indexInYear] = value === null ? null : value;
+        }
+      });
+      const color = colors[index % colors.length];
+      return {
+        label: `ปีงบประมาณ ${group.year}`,
+        data: valuesByMonth,
+        borderColor: color,
+        backgroundColor: color,
+        pointBackgroundColor: color,
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        borderWidth: 3,
+        tension: 0.25,
+        spanGaps: false,
+        fill: false
+      };
+    });
+
+    annualChart = new Chart(chartElement, {
+      type: 'line',
+      data: { labels: monthLabels, datasets },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
         plugins: {
-          legend: { display: false },
+          legend: { position: 'bottom', labels: { usePointStyle: true, font: { family: 'Prompt', size: 11 } } },
           tooltip: { callbacks: { label: context =>
-            `${metric}: ${context.raw === null ? 'ไม่มีข้อมูล' : showValue(context.raw)}`
+            `${context.dataset.label}: ${showValue(context.parsed.y)}`
           }}
         },
         scales: {
-          x: { grid: { display: false } },
-          y: { beginAtZero: true, grid: { color: 'rgba(100,120,150,.10)' } }
+          x: { title: { display: true, text: 'เดือนในปีงบประมาณ' }, grid: { display: false } },
+          y: { title: { display: true, text: metric }, grid: { color: 'rgba(100,120,150,.10)' } }
         }
       }
     });
