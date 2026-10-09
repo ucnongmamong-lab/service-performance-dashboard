@@ -45,6 +45,7 @@
     document.head.appendChild(style);
   }
 
+
   function addAnnualView() {
     if (document.querySelector('.nav-tab[data-view="annual"]')) return;
 
@@ -101,13 +102,15 @@
     `;
     dataView.parentNode.insertBefore(section, dataView);
 
+    // Hide the dashboard-wide FILTER panel in this view to avoid showing duplicate filters.
+    section.querySelectorAll('.filter-panel, #filterPanel, .filters-panel, .global-filter-panel').forEach(el => el.remove());
+
     document.getElementById('annualMetric').innerHTML = annualMetrics.map(key =>
       `<option value="${escapeHtml(key)}">${escapeHtml(key)}</option>`
     ).join('');
     document.getElementById('annualMetric').value = 'OP visit';
     document.getElementById('annualMetric').addEventListener('change', renderAnnualComparison);
   }
-
   function installDoughnutPercentLabels() {
     if (!window.Chart || Chart.registry.plugins.get('spdDoughnutPercentLabels')) return;
     Chart.register({
